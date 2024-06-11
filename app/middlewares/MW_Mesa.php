@@ -8,7 +8,7 @@ require_once './models/Mesa.php';
 require_once './models/Pedido.php';
 require_once './interfaces/IApiCampos.php';
 
-class MW_Mesa implements IApiCampos
+class MW_Mesa
 {
     public static function ValidarCampos(Request $request, RequestHandler $handler)
     {
@@ -32,14 +32,14 @@ class MW_Mesa implements IApiCampos
         $response = new ResponseClass();
         $params = $request->getParsedBody();
 
-        $id_mesa = $params["id_mesa"];
-        $id_pedido = $params["id_pedido"];
+        $codigo_mesa = $params["codigo_mesa"];
+        $codigo_pedido = $params["codigo_pedido"];
         $estado_mesa = $params["estado"];
 
-        $mesa = Mesa::ObtenerMesa($id_mesa);
-        $pedido = Pedido::obtenerPedido($id_pedido);
+        $mesa = Mesa::ObtenerMesa($codigo_mesa);
+        $pedido = Pedido::obtenerPedido($codigo_pedido);
 
-        if($pedido->id_mesa != $id_mesa)
+        if($pedido->codigo_mesa != $codigo_mesa)
         {
             $response->getBody()->write(json_encode(array("error" => "ese pedido no pertenece a esa mesa"))); 
         }
@@ -68,9 +68,9 @@ class MW_Mesa implements IApiCampos
         $response = new ResponseClass();
 
         $params = $request->getParsedBody();
-        $id_mesa = $params["id_mesa"];
+        $codigo_mesa = $params["codigo_mesa"];
 
-        $mesa = Mesa::ObtenerMesa($id_mesa);
+        $mesa = Mesa::ObtenerMesa($codigo_mesa);
 
         if($mesa->estado == "con cliente esperando pedido" || $mesa->estado == "con cliente comiendo")
         {
@@ -89,34 +89,42 @@ class MW_Mesa implements IApiCampos
         $response = new ResponseClass();
         $params = $request->getParsedBody();
 
-        if(Mesa::ObtenerMesa($params["id_mesa"]))
+        if (!isset($params["codigo"]))
         {
-            $response->getBody()->write(json_encode(array("error" => "esa mesa ya existe")));
+            $response->getBody()->write(json_encode(array("error" => "no se envia codigo")));
         }
         else
         {
-            $response = $handler->handle($request);
+            if(Mesa::ObtenerMesa($params["codigo"]))
+            {
+                $response->getBody()->write(json_encode(array("error" => "esa mesa ya existe")));
+            }
+            else
+            {
+                $response = $handler->handle($request);
+            }
         }
 
         return $response;
     }
 
-    public static function ValidarCodigoNoExistente(Request $request, RequestHandler $handler)
-    {
-        $response = new ResponseClass();
-        $queryParams = $request->getQueryParams();
-        $bodyParams = $request->getParsedBody();
-        $params = !empty($queryParams) ? $queryParams : $bodyParams;
+    // public static function ValidarCodigoNoExistente(Request $request, RequestHandler $handler)
+    // {
+    //     $response = new ResponseClass();
+    //     $queryParams = $request->getQueryParams();
+    //     $bodyParams = $request->getParsedBody();
+    //     $params = !empty($queryParams) ? $queryParams : $bodyParams;
 
-        if(Mesa::ObtenerMesa($params["id_mesa"]))
-        {
-            $response = $handler->handle($request);
-        }
-        else
-        {
-            $response->getBody()->write(json_encode(array("error" => "codigo de mesa no existente")));
-        }
 
-        return $response;
-    }
+    //     if(isset($params["codigo_mesa"]) && Mesa::ObtenerMesa($params["codigo_mesa"]))
+    //     {
+    //         $response = $handler->handle($request);
+    //     }
+    //     else
+    //     {
+    //         $response->getBody()->write(json_encode(array("error" => "codigo de mesa no existente o no enviado")));
+    //     }
+
+    //     return $response;
+    // }
 }

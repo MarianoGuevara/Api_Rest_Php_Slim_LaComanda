@@ -44,7 +44,7 @@ $app->group('/usuarios', function (RouteCollectorProxy $group)
 {
     $group->get('[/]', \UsuarioController::class . ':TraerTodos');
     $group->get('/{id_usuario}', \UsuarioController::class . ':TraerUno');
-    $group->post('[/]', \UsuarioController::class . ':CargarUno')->add(MW_Usuario::class . ':ValidarRol');
+    $group->post('[/]', \UsuarioController::class . ':CargarUno')->add(MW_Usuario::class . ':ValidarRol'); // valido que el rol de param esté OK
     $group->put('[/]', \UsuarioController::class . ':ModificarUno');
     $group->delete('[/]', \UsuarioController::class . ':BorrarUno');
 });
@@ -54,9 +54,9 @@ $app->group('/usuarios', function (RouteCollectorProxy $group)
 $app->group('/mesas', function (RouteCollectorProxy $group) 
 {
     $group->get('[/]', \MesaController::class . ':TraerTodos');
-    $group->get('/{id_mesa}', \MesaController::class . ':TraerUno')->add(MW_Mesa::class . ':ValidarCodigoNoExistente');
-    $group->post('[/]', \MesaController::class . ':CargarUno')->add(MW_Mesa::class . ':ValidarCodigoExistente')
-    ->add(MW_Mesa::class . ':ValidarCampos');
+    $group->get('/{id_mesa}', \MesaController::class . ':TraerUno');
+    $group->post('[/]', \MesaController::class . ':CargarUno')->add(MW_Mesa::class . ':ValidarCodigoExistente') // se fija q la mesa no tenga codigo repetido
+    ->add(MW_Mesa::class . ':ValidarCampos'); // se fija q se mande codigo y estado.
     $group->put('[/]', \MesaController::class . ':ModificarUno')->add(MW_Mesa::class . ':CambiarEstadoMesa')->add(new MW_Usuario("mozo"))
     ->add(MW_Pedido::class . ':ValidarCodigoNoExistente')->add(MW_Mesa::class . ':ValidarCodigoNoExistente');
     $group->delete('[/]', \MesaController::class . ':BorrarUno');

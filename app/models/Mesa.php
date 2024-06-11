@@ -15,12 +15,12 @@ class Mesa
         return $consulta->fetchAll(PDO::FETCH_CLASS, 'Mesa');
     }
 
-    public static function obtenerMesa($id_mesa)
+    public static function obtenerMesa($codigo)
     {
         $objAccesoDatos = AccesoDatos::obtenerInstancia();
 
-        $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM mesas WHERE id_mesa = :id_mesa");
-        $consulta->bindValue(':id_mesa', $id_mesa, PDO::PARAM_INT);
+        $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM mesas WHERE codigo = :codigo");
+        $consulta->bindValue(':codigo', $codigo, PDO::PARAM_INT);
         $consulta->execute();
 
         return $consulta->fetchObject('Mesa');

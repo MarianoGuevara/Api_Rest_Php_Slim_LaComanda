@@ -100,7 +100,7 @@ class MW_Usuario
         }
         else
         {
-            $response->getBody()->write(json_encode(array("error" => "No se envía el rol")));
+            $response->getBody()->write(json_encode(array("error" => "No se envia el rol")));
         }
 
         return $response;
