@@ -63,9 +63,9 @@ $app->get('/admin', function (Request $request, Response $response){
 
 
 $app->group('/sesion', function (RouteCollectorProxy $group) {
-    $group->post('[/]', \Logger::class.'::Loguear'); // OK
+    $group->post('[/]', \Logger::class.'::Loguear');
 
-    $group->get('[/]', \Logger::class.'::Salir'); // OK
+    $group->get('[/]', \Logger::class.'::Salir');
 })
 ->add(\Logger::class.'::LimpiarCoockieUsuario');
 
@@ -114,6 +114,7 @@ $app->group('/productos', function (RouteCollectorProxy $group) {
     ->add(\Logger::class.':ValidarSesionIniciada');
 });
 
+
 $app->group('/mesas', function (RouteCollectorProxy $group) {
     $group->get('[/]', \MesaController::class.':TraerTodos')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');
@@ -140,10 +141,12 @@ $app->group('/mesas', function (RouteCollectorProxy $group) {
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');
 })->add(\Logger::class.':ValidarSesionIniciada');
 
+
 $app->group('/cobrar', function (RouteCollectorProxy $group) {
     $group->post('[/]', \MesaController::class.':CerrarMesa')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');    
 });
+
 
 $app->group('/pedidos', function (RouteCollectorProxy $group) {
     $group->get('[/]', \PedidoController::class.':TraerTodos')
@@ -180,13 +183,17 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
     ->add(\AutenticadorUsuario::class.':VerificarUsuario');    
 })->add(\Logger::class.':ValidarSesionIniciada');
 
+
 $app->group('/archivos', function (RouteCollectorProxy $group) {
     $group->post('/cargarProductos', \ProductoController::class.'::CargarCSV');
+
     $group->get('/descargarPedidos', \PedidoController::class.'::DescargarCSV');
+
     $group->get('/descargarUsuarios', \UsuarioController::class.':DescargarPDF');
 })
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
+
 
 $app->group('/estadisticas', function (RouteCollectorProxy $group) {
     $group->get('/promedio', \PedidoController::class.':CalcularPromedioIngresos30Dias');
@@ -194,9 +201,11 @@ $app->group('/estadisticas', function (RouteCollectorProxy $group) {
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
 
+
 $app->get('/transacciones', \LogTransaccionesController::class.':GetTransacciones')
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
+
 
 $app->post('/comentar', \ComentarioController::class.':CargarUno')
 ->add(\AutenticadorMesas::class.':ValidarMesaCerrada')
@@ -207,17 +216,12 @@ $app->post('/comentar', \ComentarioController::class.':CargarUno')
     return \AutenticadorUsuario::ValidarPermisosDeRolDoble($request, $handler, 'cliente');
 });;
 
+
 $app->get('/mejores-comentarios', \ComentarioController::class.':TraerMejores')
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');
 
-$app->get('/exportar-logo', \UsuarioController::class.':ExportarLogo')
-->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');
-
-$app->get('[/]', function (Request $request, Response $response) {
-    $payload = json_encode(array("mensaje" => "Prueba de conex"));
-    $response->getBody()->write($payload);
-    return $response->withHeader('Content-Type', 'application/json');
-});
 
 $app->add(\LogMiddleware::class.':LogTransaccion');
+
+
 $app->run();

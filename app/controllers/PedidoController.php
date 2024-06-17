@@ -1,6 +1,7 @@
 <?php
 require_once './models/Pedido.php';
 require_once './models/Producto.php';
+require_once 'MesaController.php';
 require_once './interfaces/IApiUsable.php';
 class PedidoController extends Pedido implements IApiUsable{
     public function TraerUno($request, $response, $args){
@@ -35,7 +36,6 @@ class PedidoController extends Pedido implements IApiUsable{
                 if ($minutos >= $producto->tiempoPreparacion)
                     $listaFueraTiempo[] = $pedido;
             }
-
         }
         $payload = json_encode(array("listaPedidosFueraTiempo" => $listaFueraTiempo));
         $response->getBody()->write($payload);
@@ -43,16 +43,14 @@ class PedidoController extends Pedido implements IApiUsable{
     }
     public function CargarUno($request, $response, $args){
         $parametros = $request->getParsedBody();
-        $cookies = $request->getCookieParams();
-
-        $tokenUsuario = AutentificadorJWT::ObtenerData($cookies['JWT']);
-        $tokenMesa = AutentificadorJWT::ObtenerData($cookies[$parametros['codigoPedido'].'_'.$tokenUsuario->nombre.'_'.$tokenUsuario->email]);
+        $mesa = MesaController::obtenerMesaCodigoMesa($parametros["codigoMesa"]);
+        var_dump($mesa);
 
         $producto = Producto::obtenerProducto($parametros['idProducto']);
 
         $pedido = new Pedido();
-        $pedido->codigoPedido = $tokenMesa->codigoPedido;
-        $pedido->idMesa = $tokenMesa->mesa;
+        $pedido->codigoPedido = self::generarCodigoPedido();
+        $pedido->idMesa = $mesa->id;
         $pedido->idProducto = $parametros['idProducto'];
         $pedido->sector = self::ChequearSector($producto->tipo);
         $pedido->cantidad = $parametros['cantidad'];
@@ -102,7 +100,7 @@ class PedidoController extends Pedido implements IApiUsable{
 
     public static function generarCodigoPedido(){
         $caracteres = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        $longitud = 16;
+        $longitud = 5;
         $codigo = '';
         for ($i = 0; $i < $longitud; $i++) {
             $codigo .= $caracteres[rand(0, strlen($caracteres) - 1)];
@@ -132,8 +130,6 @@ class PedidoController extends Pedido implements IApiUsable{
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
-
-
 
     public static function RecibirPedidos($request, $response, $args) {
         $idPedido = $args['idPedido'];
@@ -183,11 +179,12 @@ class PedidoController extends Pedido implements IApiUsable{
             return 'cocina';
         }
         else if($tipo === 'bebida'){
-            return 'barra';
+            return 'barra tragos';
         }
         else if($tipo === 'postre'){
             return 'candybar';
         }
+        else return "barra choperas";
     }
 
     public function CalcularPromedioIngresos30Dias($request, $response, $args)
