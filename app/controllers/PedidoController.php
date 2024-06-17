@@ -107,7 +107,7 @@ class PedidoController extends Pedido implements IApiUsable{
         }
         return $codigo;
     }
-    
+
     public static function TraerTodosPorSector($request, $response, $args) {
         $cookie = $request->getCookieParams();
         if(isset($cookie['JWT'])){
