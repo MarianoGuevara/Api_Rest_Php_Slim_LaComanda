@@ -155,4 +155,27 @@ class MesaController extends Mesa implements IApiUsable{
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
+
+    public static function AsociarFoto($request, $response, $args){
+        $parametros = $request->getParsedBody();
+        $parametrosArchivos = $request->getUploadedFiles();
+        if (isset($parametrosArchivos["foto"]))
+        {
+            $foto = $parametrosArchivos["foto"];
+            $mesa = Mesa::obtenerMesaCodigoMesa($parametros['codigoMesa']);
+
+            $nombre = $mesa->codigo . ".png";
+            $foto->moveTo($nombre);
+
+            $payload = json_encode(array("mensaje" => "Mesa asociada a foto con exito"));
+            $response->getBody()->write($payload);
+        }
+        else
+        {
+            $payload = json_encode(array("mensaje" => "Foto no enviada"));
+            $response->getBody()->write($payload);
+        }
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
 }

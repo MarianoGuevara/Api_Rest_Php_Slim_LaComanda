@@ -83,7 +83,6 @@ class UsuarioController extends Usuario implements IApiUsable
         return $response->withHeader('Content-Type', 'application/json');
     }
 
-    
     public function DescargarPDF($request, $response, $args)
     {
         Usuario::ExportarPDF();
@@ -127,5 +126,4 @@ class UsuarioController extends Usuario implements IApiUsable
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
-    
 }

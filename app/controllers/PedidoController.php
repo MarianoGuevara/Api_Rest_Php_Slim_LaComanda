@@ -113,6 +113,7 @@ class PedidoController extends Pedido implements IApiUsable{
         if(isset($cookie['JWT'])){
             $token = $cookie['JWT'];
             $datos = AutentificadorJWT::ObtenerData($token);
+            var_dump($datos);
             if($datos->rol == 'cocinero' || $datos->rol == 'cocinera'){
                 $lista = Pedido::obtenerTodosPorSector('cocina');
             }
@@ -121,6 +122,10 @@ class PedidoController extends Pedido implements IApiUsable{
             }
             if($datos->rol == 'maestro pastelero' || $datos->rol == 'maestro pastelera'){
                 $lista = Pedido::obtenerTodosPorSector('candybar');
+            }
+            if ($datos->rol == 'socio')
+            {
+                $lista = ["Los socios no pueden traer por sector"];
             }
             $payload = json_encode(array("listaPedidos" => $lista));
         }
@@ -171,9 +176,8 @@ class PedidoController extends Pedido implements IApiUsable{
         $payload = json_encode(array("mensaje" => 'Archivo de Pedidos del dia de la fecha creado exitosamente'));
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
-
     }
-    
+
     public static function ChequearSector($tipo){
         if($tipo === 'comida'){
             return 'cocina';

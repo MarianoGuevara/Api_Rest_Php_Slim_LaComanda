@@ -139,13 +139,10 @@ $app->group('/mesas', function (RouteCollectorProxy $group) {
     $group->get('/facturacion-entre-fechas', \MesaController::class.':GetCobroEntreDosFechas')
     ->add(\AutenticadorMesas::class.':ValidarCamposCobroEntreFechas')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');
+
+    $group->post('/foto', \MesaController::class.':AsociarFoto')
+    ->add(\AutenticadorMesas::class.':ValidarMesaCodigoMesa');
 })->add(\Logger::class.':ValidarSesionIniciada');
-
-
-$app->group('/cobrar', function (RouteCollectorProxy $group) {
-    $group->post('[/]', \MesaController::class.':CerrarMesa')
-    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');    
-});
 
 
 $app->group('/pedidos', function (RouteCollectorProxy $group) {
@@ -193,6 +190,12 @@ $app->group('/archivos', function (RouteCollectorProxy $group) {
 })
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
+
+
+$app->group('/cobrar', function (RouteCollectorProxy $group) {
+    $group->post('[/]', \MesaController::class.':CerrarMesa')
+    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');    
+});
 
 
 $app->group('/estadisticas', function (RouteCollectorProxy $group) {
