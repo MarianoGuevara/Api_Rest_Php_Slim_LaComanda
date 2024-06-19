@@ -27,12 +27,10 @@ class ProductoController extends Producto implements IApiUsable{
         $nombre = $parametros['nombre'];
         $tipo = $parametros['tipo'];
         $precio = $parametros['precio'];
-        $tiempo = $parametros['tiempoPreparacion'];
         $prd = new Producto();
         $prd->nombre = $nombre;
         $prd->tipo = $tipo;
         $prd->precio = $precio;
-        $prd->tiempoPreparacion = $tiempo;
         $prd->crearProducto();
 
         $payload = json_encode(array("mensaje" => "Producto creado con exito"));
@@ -59,9 +57,7 @@ class ProductoController extends Producto implements IApiUsable{
         if(isset($parametros['precio'])){
             $producto->precio = $parametros['precio'];
         }
-        if(isset($parametros['tiempoPreparacion'])){
-            $producto->tiempoPreparacion = $parametros['tiempoPreparacion'];
-        }
+
         Producto::modificarProducto($producto);
         $payload = json_encode(array("mensaje" => "Producto modificado con exito"));
         $response->getBody()->write($payload);
@@ -78,7 +74,6 @@ class ProductoController extends Producto implements IApiUsable{
             $producto->nombre = $datos[1];
             $producto->tipo = $datos[2];
             $producto->precio = $datos[3];
-            $producto->tiempoPreparacion = $datos[4];
             $producto->crearProducto();
         }
         fclose($archivo);

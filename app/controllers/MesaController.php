@@ -1,6 +1,7 @@
 <?php
 require_once './models/Mesa.php';
 require_once './models/Pedido.php';
+// require_once 'PedidoC.php';
 require_once './interfaces/IApiUsable.php';
 class MesaController extends Mesa implements IApiUsable{
     public function TraerUno($request, $response, $args){
@@ -101,24 +102,41 @@ class MesaController extends Mesa implements IApiUsable{
 
     public static function CerrarMesa($request, $response, $args) {
         $parametros = $request->getParsedBody();
-        $codigoMesa = $parametros['codigo'];
-        if(isset($codigoMesa)){
-            $listaPedidos = Pedido::obtenerPedidosPorMesa($codigoMesa);
-            $mesa = Mesa::obtenerMesaCodigoMesa($codigoMesa);
+
+        if(isset($parametros['id']))
+        {
+            $idMesa = $parametros['id'];
+
+            $listaPedidos = Pedido::obtenerPedidosPorMesa($idMesa);
+            $mesa = Mesa::obtenerMesa($idMesa);
+        
             $precioACobrar = 0;
+            $noCompleta = false;
+
             foreach($listaPedidos as $pedido){
-                if($pedido->estado == 'completado'){
+                var_dump($pedido->estado);
+                if($pedido->estado === 'preparado'){
                     $precioACobrar += $pedido->importe;
                 }
+                else{
+                    $noCompleta = true;
+                    break;
+                }
             }
-            $mesa->cobro = $precioACobrar;
-            Mesa::modificarMesa($mesa);
-            $payload = json_encode(array("mensaje" => "Mesa cerrada - Total a pagar: [ ".$precioACobrar." ]"));
+            if ($noCompleta == false)
+            {
+                $mesa->cobro = $precioACobrar;
+                Mesa::modificarMesa($mesa);
+                Mesa::CobrarYCerrarMesa($mesa->codigo);
+                $payload = json_encode(array("mensaje" => "Mesa cerrada - Total a pagar: [ ".$precioACobrar." ]"));
+            }
+            else{
+                $payload = json_encode(array("mensaje" => "Mesa no puede cerrarse. Tiene alguna parte del pedido no entregada"));
+            }
         }
         else{
-            $payload = json_encode(array("mensaje" => "No se encontro la mesa"));
+            $payload = json_encode(array("mensaje" => "No se envio mesa"));
         }
-        Mesa::CobrarYCerrarMesa($parametros['codigo']);
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
@@ -175,6 +193,59 @@ class MesaController extends Mesa implements IApiUsable{
             $payload = json_encode(array("mensaje" => "Foto no enviada"));
             $response->getBody()->write($payload);
         }
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public static function TiempoRestante($request, $response, $args){
+        $parametros = $request->getParsedBody();
+
+        if (isset($parametros["codigoMesa"]))
+        {
+            // $codigoPedido = $parametros["codigoPedido"];
+
+            $mesa = Mesa::obtenerMesaCodigoMesa($parametros['codigoMesa']);
+            $lista = Pedido::obtenerPedidosPorMesa($mesa->id);
+
+            $tds_no_null = true;
+            $time = $lista[0];
+            for ($i=0; $i<count($lista); $i++)
+            {
+                if ($lista[$i]->tiempoPreparacion == null)
+                {
+                    $tds_no_null = false;
+                    break;
+                }
+                if ($lista[$i]->tiempoPreparacion > $time->tiempoPreparacion)
+                {
+                    $time = $lista[$i];
+                }
+            }
+
+            if ($tds_no_null) $payload = json_encode(array("mensaje" => "El pedido tardará: " . $time->tiempoPreparacion));
+            else $payload = json_encode(array("mensaje" => "La mesa tiene una o mas partes del pedido que no estan en preparacion aun."));
+            $response->getBody()->write($payload);        
+        }
+        else    
+        {
+            $payload = json_encode(array("mensaje" => "Parametros"));
+            $response->getBody()->write($payload);
+        }
+        
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public static function MesaEstados($request, $response, $args){
+        $arrayFinal = [];
+        $mesas = Mesa::obtenerTodos();
+
+        for ($i=0; $i<count($mesas); $i++)
+        {
+            $arrayFinal[$mesas[$i]->codigo] = $mesas[$i]->estado;
+        }
+
+        $payload = json_encode(array("mensaje" => $arrayFinal));
+        $response->getBody()->write($payload);        
+
         return $response->withHeader('Content-Type', 'application/json');
     }
 

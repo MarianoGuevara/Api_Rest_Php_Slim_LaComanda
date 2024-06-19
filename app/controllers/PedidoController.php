@@ -44,7 +44,6 @@ class PedidoController extends Pedido implements IApiUsable{
     public function CargarUno($request, $response, $args){
         $parametros = $request->getParsedBody();
         $mesa = MesaController::obtenerMesaCodigoMesa($parametros["codigoMesa"]);
-        var_dump($mesa);
 
         $producto = Producto::obtenerProducto($parametros['idProducto']);
 
@@ -56,6 +55,8 @@ class PedidoController extends Pedido implements IApiUsable{
         $pedido->cantidad = $parametros['cantidad'];
         $pedido->nombreCliente = $parametros['nombreCliente'];
         $pedido->importe = $parametros['cantidad'] * $producto->precio;
+        $pedido->tiempoPreparacion = null;
+
         $pedido->crearPedido();
         $payload = json_encode(array("mensaje" => "Pedido creado con exito"));
         $response->getBody()->write($payload);
@@ -90,6 +91,9 @@ class PedidoController extends Pedido implements IApiUsable{
         if(isset($parametros['idProducto'])){
             Pedido::modificarPedido($pedido, $parametros['idProducto']);
         }
+        if(isset($parametros['tiempoPreparacion'])){
+            $producto->tiempoPreparacion = $parametros['tiempoPreparacion'];
+        }
         else{
             Pedido::modificarPedido($pedido, false);
         }
@@ -113,14 +117,17 @@ class PedidoController extends Pedido implements IApiUsable{
         if(isset($cookie['JWT'])){
             $token = $cookie['JWT'];
             $datos = AutentificadorJWT::ObtenerData($token);
-            var_dump($datos);
-            if($datos->rol == 'cocinero' || $datos->rol == 'cocinera'){
+
+            if($datos->rol == 'cocinero'){
                 $lista = Pedido::obtenerTodosPorSector('cocina');
             }
-            if($datos->rol == 'barman'){
+            if($datos->rol == 'bartender'){
                 $lista = Pedido::obtenerTodosPorSector('barra');
             }
-            if($datos->rol == 'maestro pastelero' || $datos->rol == 'maestro pastelera'){
+            if($datos->rol == 'cervecero'){
+                $lista = Pedido::obtenerTodosPorSector('cervezas');
+            }
+            if($datos->rol == 'candyman'){
                 $lista = Pedido::obtenerTodosPorSector('candybar');
             }
             if ($datos->rol == 'socio')
@@ -137,10 +144,51 @@ class PedidoController extends Pedido implements IApiUsable{
     }
 
     public static function RecibirPedidos($request, $response, $args) {
-        $idPedido = $args['idPedido'];
-        $pedido = Pedido::obtenerPedidoIndividual($idPedido);
-        Pedido::updatePedidoPendiente($pedido);
-        $payload = json_encode(array("mensaje" => 'Comenzo la preparacion del pedido'));
+        $parametros = $request->getQueryParams();
+        $cookie = $request->getCookieParams();
+
+        if (isset($parametros["tiempoPreparacion"]))
+        {
+            if(isset($cookie['JWT'])){
+                $token = $cookie['JWT'];
+                $datos = AutentificadorJWT::ObtenerData($token);
+
+                $idPedido = $args['idPedido'];
+                $pedido = Pedido::obtenerPedidoIndividual($idPedido);
+
+                $vale = false;
+                if($datos->rol == 'cocinero' && $pedido->sector == "cocina"){
+                    $vale = true;
+                }
+                if($datos->rol == 'bartender' && $pedido->sector == "barra"){
+                    $vale = true;
+                }
+                if($datos->rol == 'candyman' && $pedido->sector == "candybar"){
+                    $vale = true;
+                }
+                if($datos->rol == 'cervecero' && $pedido->sector == "cerveza"){
+                    $vale = true;
+                }
+                
+                if ($vale)
+                {
+                    Pedido::updatePedidoPendiente($pedido, $parametros["tiempoPreparacion"]);
+                    $payload = json_encode(array("mensaje" => 'Comenzo la preparacion del pedido'));
+                }
+                else
+                {
+                    $payload = json_encode(array("mensaje" => 'Ud. no es del sector para agarrar el pedido'));
+                }
+            }
+            else
+            {
+                $payload = json_encode(array("mensaje" => 'No esta iniciado sesion'));
+            }
+        }
+        else    
+        {
+            $payload = json_encode(array("mensaje" => 'No se envia tiempo de preparacion'));
+        }
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
@@ -167,10 +215,10 @@ class PedidoController extends Pedido implements IApiUsable{
         $fecha = new DateTime(date('Y-m-d'));
         $path = date_format($fecha, 'Y-m-d').'pedidos_completados.csv';
         $archivo = fopen($path, 'w');
-        $encabezado = array('id','codigoPedido','idMesa','idProducto','nombreCliente','sector','estado','importe','cantidad','fechaInicio','fechaCierre');
+        $encabezado = array('id','codigoPedido','idMesa','idProducto','nombreCliente','sector','estado','importe','cantidad','fechaInicio','fechaCierre','tiempoPreparacion');
         fputcsv($archivo, $encabezado);
         foreach($pedidos as $pedido){
-            $linea = array($pedido->id, $pedido->codigoPedido, $pedido->idMesa, $pedido->idProducto, $pedido->nombreCliente, $pedido->sector, $pedido->estado, $pedido->importe, $pedido->cantidad, $pedido->fechaInicio, $pedido->fechaCierre);
+            $linea = array($pedido->id, $pedido->codigoPedido, $pedido->idMesa, $pedido->idProducto, $pedido->nombreCliente, $pedido->sector, $pedido->estado, $pedido->importe, $pedido->cantidad, $pedido->fechaInicio, $pedido->fechaCierre, $pedido->tiempoPreparacion);
             fputcsv($archivo, $linea);
         }
         $payload = json_encode(array("mensaje" => 'Archivo de Pedidos del dia de la fecha creado exitosamente'));
@@ -182,13 +230,13 @@ class PedidoController extends Pedido implements IApiUsable{
         if($tipo === 'comida'){
             return 'cocina';
         }
-        else if($tipo === 'bebida'){
-            return 'barra tragos';
+        else if($tipo === 'bebida' || $tipo === 'trago'){
+            return 'barra';
         }
         else if($tipo === 'postre'){
             return 'candybar';
         }
-        else return "barra choperas";
+        else return "cerveza";
     }
 
     public function CalcularPromedioIngresos30Dias($request, $response, $args)
@@ -237,5 +285,35 @@ class PedidoController extends Pedido implements IApiUsable{
         return $response->withHeader('Content-Type', 'application/json');
     }
 
-    
+    public function ListarPedidosListos($request, $response, $args)
+    {   
+        $arrayFinal = [];
+        $pedidos = Pedido::obtenerTodos();
+        foreach ($pedidos as $pedido)
+        {
+            if ($pedido->estado == "preparado")
+            {
+                array_push($arrayFinal, $pedido);
+            }
+        }
+
+        $payload = json_encode(array("lista pedidos listos para servir" => $arrayFinal));
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public static function PedidosTiempos($request, $response, $args){
+        $arrayFinal = [];
+        $pedidos = Pedido::obtenerTodos();
+
+        for ($i=0; $i<count($pedidos); $i++)
+        {
+            $arrayFinal[$pedidos[$i]->codigoPedido] = $pedidos[$i]->tiempoPreparacion;
+        }
+
+        $payload = json_encode(array("mensaje" => $arrayFinal));
+        $response->getBody()->write($payload);        
+
+        return $response->withHeader('Content-Type', 'application/json');
+    }
 }

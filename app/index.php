@@ -142,6 +142,12 @@ $app->group('/mesas', function (RouteCollectorProxy $group) {
 
     $group->post('/foto', \MesaController::class.':AsociarFoto')
     ->add(\AutenticadorMesas::class.':ValidarMesaCodigoMesa');
+
+    $group->post('/tiempo', \MesaController::class.':TiempoRestante');
+
+    $group->get('/estados', \MesaController::class.':MesaEstados')
+    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');
+    
 })->add(\Logger::class.':ValidarSesionIniciada');
 
 
@@ -176,9 +182,21 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
     $group->get('/sector/preparado/{idPedido}', \PedidoController::class.':PrepararPedido')
     ->add(\AutenticadorUsuario::class.':VerificarUsuario');
 
-    $group->get('/entregar/pedido/{idPedido}', \PedidoController::class.':EntregarPedidoFinalizado')
-    ->add(\AutenticadorUsuario::class.':VerificarUsuario');    
+    // $group->get('/entregar/pedido/{idPedido}', \PedidoController::class.':EntregarPedidoFinalizado')
+    // ->add(\AutenticadorUsuario::class.':VerificarUsuario');    
+
+    $group->get('/pedidosListos', \PedidoController::class.':ListarPedidosListos')
+    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');    
+
+    $group->get('/pedidosTiempos', \PedidoController::class.':PedidosTiempos')
+    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');    
 })->add(\Logger::class.':ValidarSesionIniciada');
+
+
+$app->group('/cobrar', function (RouteCollectorProxy $group) {
+    $group->post('[/]', \MesaController::class.':CerrarMesa')
+    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');    
+});
 
 
 $app->group('/archivos', function (RouteCollectorProxy $group) {
@@ -190,12 +208,6 @@ $app->group('/archivos', function (RouteCollectorProxy $group) {
 })
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
-
-
-$app->group('/cobrar', function (RouteCollectorProxy $group) {
-    $group->post('[/]', \MesaController::class.':CerrarMesa')
-    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');    
-});
 
 
 $app->group('/estadisticas', function (RouteCollectorProxy $group) {
