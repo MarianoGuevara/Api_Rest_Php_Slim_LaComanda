@@ -55,6 +55,7 @@ class MesaController extends Mesa implements IApiUsable{
             $datos = AutentificadorJWT::ObtenerData($token);
             $mesa = new Mesa();
             $mesa->codigo = self::generarCodigoMesa();
+            $mesa->usos = 0;
             $mesa->nombreMozo = $datos->nombre;
             $mesa->crearMesa();
             $payload = json_encode(array("mensaje" => "Mesa creada con exito - puede empezar a regitrar pedidos con el codigo [ $mesa->codigo ]"));
@@ -115,7 +116,7 @@ class MesaController extends Mesa implements IApiUsable{
 
             foreach($listaPedidos as $pedido){
                 var_dump($pedido->estado);
-                if($pedido->estado === 'preparado'){
+                if($pedido->estado === 'completado'){
                     $precioACobrar += $pedido->importe;
                 }
                 else{
@@ -127,11 +128,11 @@ class MesaController extends Mesa implements IApiUsable{
             {
                 $mesa->cobro = $precioACobrar;
                 Mesa::modificarMesa($mesa);
-                Mesa::CobrarYCerrarMesa($mesa->codigo);
-                $payload = json_encode(array("mensaje" => "Mesa cerrada - Total a pagar: [ ".$precioACobrar." ]"));
+                Mesa::CobrarYLiberarMesa($mesa->codigo);
+                $payload = json_encode(array("mensaje" => "Mesa cobrada - Total a pagar: [ ".$precioACobrar." ]"));
             }
             else{
-                $payload = json_encode(array("mensaje" => "Mesa no puede cerrarse. Tiene alguna parte del pedido no entregada"));
+                $payload = json_encode(array("mensaje" => "Mesa no puede liberarse y cobrarse aún. Tiene alguna parte del pedido no entregada"));
             }
         }
         else{
@@ -248,5 +249,60 @@ class MesaController extends Mesa implements IApiUsable{
 
         return $response->withHeader('Content-Type', 'application/json');
     }
+    public static function AdminCerrarMesa($request, $response, $args){
+        $cookies = $request->getCookieParams();
+        $parametros = $request->getParsedBody();
 
+        if(isset($cookies['JWT']) && isset($parametros["id"])){
+            $token = $cookies['JWT'];
+            $datos = AutentificadorJWT::ObtenerData($token);
+            if ($datos->rol == "socio")
+            {
+                $mesa = Mesa::obtenerMesa($parametros["id"]);
+                if($mesa != null && $mesa->estado != "cerrada")
+                {
+                    $mesa->estado = "cerrada";
+                    Mesa::modificarMesa($mesa);
+                    $payload = json_encode(array("mensaje" => "Mesa cerrada por socio"));                    
+                }
+                else
+                {
+                    $payload = json_encode(array("mensaje" => "Mesa no existe o ya está cerrada"));                    
+                }
+            }
+            else
+            {
+                $payload = json_encode(array("mensaje" => "Acceso denegado"));
+            }
+        }
+        $response->getBody()->write($payload);        
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+    public static function MesaMasUsada($request, $response, $args){
+        $arrayFinal = [];
+        $mesas = Mesa::obtenerTodos();
+        $mayor = $mesas[0];
+        for ($i=0; $i<count($mesas); $i++)
+        {
+            if ($mesas[$i]->usos > $mayor->usos)
+            {
+                $mayor = $mesas[$i];
+            }
+        }
+
+        array_push($arrayFinal, $mayor);
+
+        for ($i=0; $i<count($mesas); $i++)
+        {
+            if ($mesas[$i] !== $mayor && $mesas[$i]->usos == $mayor->usos)
+            {
+                $mayor = $mesas[$i];
+                array_push($arrayFinal, $mayor);
+            }
+        }
+        $payload = json_encode(array("Masa/s con mas usos" => $arrayFinal));
+        $response->getBody()->write($payload);        
+
+        return $response->withHeader('Content-Type', 'application/json');
+    }
 }

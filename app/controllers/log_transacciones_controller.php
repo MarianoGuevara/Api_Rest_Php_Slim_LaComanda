@@ -59,6 +59,18 @@
             return $response->withHeader('Content-Type', 'application/json');
         }
 
+        public static function MesaMasUsada($request, $response, $args){
+            $arrayFinal = [];
+            $transacciones = LogTransaccion::TraerTodo();
+    
+            for ($i=0; $i<count($transacciones); $i++)
+            {
+                
+            }
+    
+            $payload = json_encode(array("mensaje" => $arrayFinal));
+            $response->getBody()->write($payload);        
+    
+            return $response->withHeader('Content-Type', 'application/json');
+        }
     }
-
-?>

@@ -9,15 +9,6 @@
             }
             throw new Exception('Campos Invalidos');
         }
-
-        public static function ValidarCodigoMesa($request, $handler){
-            $parametros = $request->getParsedBody();
-            $comentario = Comentario::obtenerComentarioCodigoMesa($parametros['codigoMesa']);
-            if($comentario){
-                throw new Exception('Esta mesa ya tiene un comentario asociado.');
-            }
-            return $handler->handle($request);
-        }
     }
 
 ?>

@@ -1,6 +1,7 @@
 <?php
 require_once './models/Pedido.php';
 require_once './models/Producto.php';
+require_once './models/Mesa.php';
 require_once 'MesaController.php';
 require_once './interfaces/IApiUsable.php';
 class PedidoController extends Pedido implements IApiUsable{
@@ -172,7 +173,10 @@ class PedidoController extends Pedido implements IApiUsable{
                 
                 if ($vale)
                 {
+                    $mesa = Mesa::obtenerMesa($pedido->idMesa);
+                    $mesa->estado = "en uso";
                     Pedido::updatePedidoPendiente($pedido, $parametros["tiempoPreparacion"]);
+                    Mesa::modificarMesa($mesa);
                     $payload = json_encode(array("mensaje" => 'Comenzo la preparacion del pedido'));
                 }
                 else

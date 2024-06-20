@@ -3,16 +3,18 @@
 class Mesa{
     public $id;
     public $codigo;
-    public $estado;
+    public $estado; // libre, en uso, cerrada(admin)
     public $nombreMozo;
     public $cobro;
+    public $usos;
     
     public function crearMesa(){
         $objAccesoDatos = AccesoDatos::obtenerInstancia();
-        $consulta = $objAccesoDatos->prepararConsulta("INSERT INTO mesas (codigo, estado, nombreMozo) VALUES (:codigo, :estado, :nombreMozo)");
+        $consulta = $objAccesoDatos->prepararConsulta("INSERT INTO mesas (codigo, estado, nombreMozo, usos) VALUES (:codigo, :estado, :nombreMozo, :usos)");
         $consulta->bindValue(':codigo', $this->codigo, PDO::PARAM_STR);
-        $consulta->bindValue(':estado', 'en uso', PDO::PARAM_STR);
+        $consulta->bindValue(':estado', 'libre', PDO::PARAM_STR);
         $consulta->bindValue(':nombreMozo', $this->nombreMozo, PDO::PARAM_STR);
+        $consulta->bindValue(':usos', $this->usos, PDO::PARAM_INT);
 
         $consulta->execute();
 
@@ -79,12 +81,13 @@ class Mesa{
         return $codigo;
     }
 
-    public static function CobrarYCerrarMesa($codigo){
+    public static function CobrarYLiberarMesa($codigo){
         $objAccesoDato = AccesoDatos::obtenerInstancia();
-        $consulta = $objAccesoDato->prepararConsulta("UPDATE mesas SET estado = :estado WHERE codigo = :codigo");
+        $mesaAntes = Mesa::obtenerMesaCodigoMesa($codigo);
+        $consulta = $objAccesoDato->prepararConsulta("UPDATE mesas SET estado = :estado, usos = :usos WHERE codigo = :codigo");
         $consulta->bindValue(':codigo', $codigo, PDO::PARAM_STR);
-        $consulta->bindValue(':estado', 'cerrada', PDO::PARAM_STR);
+        $consulta->bindValue(':estado', 'libre', PDO::PARAM_STR);
+        $consulta->bindValue(':usos', $mesaAntes->usos+=1, PDO::PARAM_STR);
         $consulta->execute();
     }
-    
 }

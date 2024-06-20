@@ -7,7 +7,7 @@ class Pedido{
     public $idProducto;
     public $nombreCliente;
     public $sector; // comida, cerveza, barra, candybar
-    public $estado;
+    public $estado; // pendiente, en preparacion, preparado, completado
     public $importe;
     public $cantidad;
     public $fechaInicio;
@@ -136,16 +136,12 @@ class Pedido{
         
         $consulta->execute();
     }
-    //de en preparacion (los distintos roles) a -> preparado 
+
     public static function updatePedidoEnPreparacion($pedido) {
         $objAccesoDato = AccesoDatos::obtenerInstancia();
-        $consulta = $objAccesoDato->prepararConsulta("UPDATE pedidos SET estado = :estado, fechaCierre = :fechaCierre WHERE id = :id");
-        $fecha = new DateTime($pedido->fechaInicio);
-        $intervalo = random_int(5,45) + 5;
-        $pedido->fechaCierre = $fecha->add(new DateInterval('PT'.$intervalo.'M10S')); 
+        $consulta = $objAccesoDato->prepararConsulta("UPDATE pedidos SET estado = :estado WHERE id = :id");
         $consulta->bindValue(':id', $pedido->id, PDO::PARAM_INT);
         $consulta->bindValue(':estado', 'preparado', PDO::PARAM_STR);
-        $consulta->bindValue(':fechaCierre', date_format($pedido->fechaCierre, 'Y-m-d H:i:s'), PDO::PARAM_STR);
         $consulta->execute();
     }
 
