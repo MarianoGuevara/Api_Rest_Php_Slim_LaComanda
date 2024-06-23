@@ -17,7 +17,6 @@
 
             $consulta = $objAccesoDatos->prepararConsulta("INSERT INTO logTransacciones (fecha, idUsuario, accion, code) VALUES (:fecha, :idUsuario, :accion, :code)");
 
-
             $consulta->bindValue(':fecha', $this->fecha, PDO::PARAM_STR);
             $consulta->bindValue(':idUsuario', $this->idUsuario, PDO::PARAM_STR);
             $consulta->bindValue(':code', $this->code, PDO::PARAM_INT);

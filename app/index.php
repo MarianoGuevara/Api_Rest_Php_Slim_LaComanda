@@ -222,11 +222,20 @@ $app->post('/comentar', \ComentarioController::class.':CargarUno')
 ->add(\AutenticadorComentarios::class.':ValidarCamposComentario')
 ->add(function ($request, $handler){
     return \AutenticadorUsuario::ValidarPermisosDeRolDoble($request, $handler, 'cliente');
-});;
+})
+->add(\Logger::class.':ValidarSesionIniciada');
 
 
 $app->get('/mejores-comentarios', \ComentarioController::class.':TraerMejores')
-->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');
+->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
+->add(\Logger::class.':ValidarSesionIniciada');
+
+
+$app->group('/estadisticas', function (RouteCollectorProxy $group) {
+    $group->get('/promedio', \PedidoController::class.':CalcularPromedioIngresos30Dias');
+})
+->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
+->add(\Logger::class.':ValidarSesionIniciada');
 
 
 $app->get('/transacciones', \LogTransaccionesController::class.':GetTransacciones')

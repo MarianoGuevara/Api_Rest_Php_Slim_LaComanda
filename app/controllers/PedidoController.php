@@ -131,9 +131,9 @@ class PedidoController extends Pedido implements IApiUsable{
             if($datos->rol == 'candyman'){
                 $lista = Pedido::obtenerTodosPorSector('candybar');
             }
-            if ($datos->rol == 'socio')
+            if ($datos->rol == 'socio' || $datos->rol == 'mozo')
             {
-                $lista = ["Los socios no pueden traer por sector"];
+                $lista = ["Los socios y mozos no pueden traer por sector"];
             }
             $payload = json_encode(array("listaPedidos" => $lista));
         }
@@ -200,16 +200,32 @@ class PedidoController extends Pedido implements IApiUsable{
     public static function PrepararPedido($request, $response, $args) {
         $idPedido = $args['idPedido'];
         $pedido = Pedido::obtenerPedidoIndividual($idPedido);
-        Pedido::updatePedidoEnPreparacion($pedido);
-        $payload = json_encode(array("mensaje" => 'Finalizo la preparacion del pedido'));
+        if ($pedido->estado == "en preparacion")
+        {
+            Pedido::updatePedidoEnPreparacion($pedido);
+            $payload = json_encode(array("mensaje" => 'Finalizo la preparacion del pedido'));
+        }
+        else
+        {
+            $payload = json_encode(array("mensaje" => 'Pedido debe estar en preparacion antes'));
+        }
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
 
     public static function EntregarPedidoFinalizado($request, $response, $args) {
         $idPedido = $args['idPedido'];
-        Pedido::LlevarPedido($idPedido);
-        $payload = json_encode(array("mensaje" => 'Que lo disfrutes'));
+        $pedido = Pedido::obtenerPedidoIndividual($idPedido);
+        if ($pedido != null && $pedido->estado == "preparado")
+        {
+            Pedido::LlevarPedido($idPedido);
+            $payload = json_encode(array("mensaje" => 'Pedido entregado. Que lo goze'));
+        }
+        else
+        {
+            $payload = json_encode(array("mensaje" => 'Pedido no existe o no está listo para entregar'));
+        }
+
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
