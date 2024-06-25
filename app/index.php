@@ -95,9 +95,11 @@ $app->group('/usuarios', function (RouteCollectorProxy $group) {
 
 
 $app->group('/productos', function (RouteCollectorProxy $group) {
-    $group->get('[/]', \ProductoController::class.':TraerTodos');
+    $group->get('[/]', \ProductoController::class.':TraerTodos')
+    ->add(\Logger::class.':ValidarSesionIniciada');
 
-    $group->get('/id', \ProductoController::class.':TraerUno');
+    $group->get('/id', \ProductoController::class.':TraerUno')
+    ->add(\Logger::class.':ValidarSesionIniciada');
 
     $group->post('[/]', \ProductoController::class.':CargarUno')
     ->add(\AutenticadorProductos::class.':ValidarCamposProductos')
@@ -153,7 +155,15 @@ $app->group('/mesas', function (RouteCollectorProxy $group) {
 
     $group->get('/mas-usada', \MesaController::class.':MesaMasUsada')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');
-    
+
+    $group->get('/menos-usada', \MesaController::class.':MesaMenosUsada')
+    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');
+
+    $group->get('/mas-facturo', \MesaController::class.':MasFacturo')
+    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');
+
+    $group->get('/menos-facturo', \MesaController::class.':MenosFacturo')
+    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');
 })->add(\Logger::class.':ValidarSesionIniciada');
 
 
@@ -196,13 +206,20 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
 
     $group->get('/pedidosTiempos', \PedidoController::class.':PedidosTiempos')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');    
+
+    $group->get('/mas-vendidos', \PedidoController::class.':PedidoMasVendido')
+    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');    
+
+    $group->get('/menos-vendidos', \PedidoController::class.':PedidoMenosVendido')
+    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');    
 })->add(\Logger::class.':ValidarSesionIniciada');
 
 
 $app->group('/cobrar', function (RouteCollectorProxy $group) {
     $group->post('[/]', \MesaController::class.':CerrarMesa')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');    
-});
+})
+->add(\Logger::class.':ValidarSesionIniciada');
 
 
 $app->group('/archivos', function (RouteCollectorProxy $group) {
@@ -230,6 +247,10 @@ $app->get('/mejores-comentarios', \ComentarioController::class.':TraerMejores')
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
 
+$app->get('/peores-comentarios', \ComentarioController::class.':TraerPeores')
+->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
+->add(\Logger::class.':ValidarSesionIniciada');
+
 
 $app->group('/estadisticas', function (RouteCollectorProxy $group) {
     $group->get('/promedio', \PedidoController::class.':CalcularPromedioIngresos30Dias');
@@ -244,6 +265,9 @@ $app->get('/transacciones', \LogTransaccionesController::class.':GetTransaccione
 
 
 $app->add(\LogMiddleware::class.':LogTransaccion');
+
+
+
 
 
 $app->run();

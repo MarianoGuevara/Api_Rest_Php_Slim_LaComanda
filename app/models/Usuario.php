@@ -6,7 +6,7 @@ class Usuario
     public $nombre;
     public $email;
     public $clave;
-    public $rol; // cocinero, socio, cliente, mozo, bartender, barm
+    public $rol; // cocinero, socio, cliente, mozo, bartender, cervecero, candyman
     public $estado;
     public $fechaInicio;
     public $fechaFinalizacion;

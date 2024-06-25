@@ -6,34 +6,41 @@
         public static function LogTransaccion($request, $handler)
         {
             $uri = $request->getUri()->getPath();
-    
-            // Si la ruta es /admin, no registrar la transacción
+            
+            // Si la ruta es /admin o /sesion, no registrar la transacción
             if ($uri === '/admin' || $uri === '/sesion') {
                 return $handler->handle($request);
             }
+        
+            $cookies = $request->getCookieParams();
 
-            $coockies = $request->getCookieParams();
-            if (isset($coockies['JWT']))
-            {
-                $token = $coockies['JWT'];
-                AutentificadorJWT::VerificarToken($token);
-                $datos = AutentificadorJWT::ObtenerData($token);
-                $idUsuario = $datos->id;
+            if (isset($cookies['JWT'])) {
+                try {
+                    $token = $cookies['JWT'];
+                    AutentificadorJWT::VerificarToken($token);
+                    $datos = AutentificadorJWT::ObtenerData($token);
+                    $idUsuario = $datos->id;
+                } catch (Exception $e) {
+                    $idUsuario = -1;
+                }
+            }
+        
+            if ($idUsuario == -1) {
+                $response = new \Slim\Psr7\Response();
+                $response->getBody()->write(json_encode(['error' => 'Token inválido']));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
             }
             else
-                $idUsuario = -1;
-
-            $response = $handler->handle($request);
-
-            $code = $response->getStatusCode();
-            $accion = $request->getUri()->getPath(); 
-            
-            if ($idUsuario != -1)
             {
+                $response = $handler->handle($request);
+                $code = $response->getStatusCode();
+                $accion = $request->getUri()->getPath(); 
+            
+                // Registrar la transacción solo si el usuario es válido
                 LogTransaccionesController::InsertarLogTransaccion($idUsuario, $accion, $code);
+            
+                return $response;   
             }
-
-            return $response;
         }
         public static function SuperUsuario1($request, $handler)
         {

@@ -305,4 +305,59 @@ class MesaController extends Mesa implements IApiUsable{
 
         return $response->withHeader('Content-Type', 'application/json');
     }
+
+    public static function MesaMenosUsada($request, $response, $args){
+        $arrayFinal = [];
+        $mesas = Mesa::obtenerTodos();
+        $menor = $mesas[0];
+        for ($i=0; $i<count($mesas); $i++)
+        {
+            if ($mesas[$i]->usos < $menor->usos)
+            {
+                $menor = $mesas[$i];
+            }
+        }
+
+        array_push($arrayFinal, $menor);
+
+        for ($i=0; $i<count($mesas); $i++)
+        {
+            if ($mesas[$i] !== $menor && $mesas[$i]->usos == $menor->usos)
+            {
+                $menor = $mesas[$i];
+                array_push($arrayFinal, $menor);
+            }
+        }
+        $payload = json_encode(array("Masa/s con mas usos" => $arrayFinal));
+        $response->getBody()->write($payload);        
+
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public static function MasFacturo($request, $response, $args){
+        $mesas = Mesa::obtenerTodos();
+        $max = $mesas[0];
+        foreach($mesas as $mesa){
+            if($mesa->cobro > $max->cobro){
+                $max = $mesa;
+            }
+        }
+        $payload = json_encode(array("Mesa que mas facturó" => $max));
+    
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+    public static function MenosFacturo($request, $response, $args){
+        $mesas = Mesa::obtenerTodos();
+        $min = $mesas[0];
+        foreach($mesas as $mesa){
+            if($mesa->cobro < $min->cobro){
+                $min = $mesa;
+            }
+        }
+        $payload = json_encode(array("Mesa que menos facturó" => $min));
+    
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json');
+    }
 }

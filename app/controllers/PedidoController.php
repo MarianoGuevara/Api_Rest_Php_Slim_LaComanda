@@ -27,14 +27,13 @@ class PedidoController extends Pedido implements IApiUsable{
         {
             if (isset($pedido->fechaCierre))
             {
-                $producto = Producto::obtenerProducto($pedido->idProducto);
-                $inicio = new DateTime($pedido->fechaInicio);
+                $inicio = new DateTime($pedido->fechaInicio); // veo fechas de inicio y cierre.
                 $cierre = new DateTime($pedido->fechaCierre);
                 $diferencia = $inicio->diff($cierre);
                 $minutos = $diferencia->days * 24 * 60;
                 $minutos += $diferencia->h * 60;
-                $minutos += $diferencia->i;
-                if ($minutos >= $producto->tiempoPreparacion)
+                $minutos += $diferencia->i; 
+                if ($minutos >= $pedido->tiempoPreparacion) // si la diferencia entre el tiempo acumulado entre fechaInicio y fechaCierre es mayor a tiempoPreparacion, se entregó fuera de time
                     $listaFueraTiempo[] = $pedido;
             }
         }
@@ -198,12 +197,40 @@ class PedidoController extends Pedido implements IApiUsable{
     }
 
     public static function PrepararPedido($request, $response, $args) {
+        $cookie = $request->getCookieParams();
+
         $idPedido = $args['idPedido'];
         $pedido = Pedido::obtenerPedidoIndividual($idPedido);
+        var_dump($pedido->sector);
+
         if ($pedido->estado == "en preparacion")
         {
-            Pedido::updatePedidoEnPreparacion($pedido);
-            $payload = json_encode(array("mensaje" => 'Finalizo la preparacion del pedido'));
+            $token = $cookie['JWT'];
+            $datos = AutentificadorJWT::ObtenerData($token);
+            var_dump($datos->rol);
+            $vale = false;
+            if($datos->rol == 'cocinero' && $pedido->sector == "cocina"){
+                $vale = true;
+            }
+            if($datos->rol == 'bartender' && $pedido->sector == "barra"){
+                $vale = true;
+            }
+            if($datos->rol == 'candyman' && $pedido->sector == "candybar"){
+                $vale = true;
+            }
+            if($datos->rol == 'cervecero' && $pedido->sector == "cerveza"){
+                $vale = true;
+            }
+            
+            if ($vale)
+            {
+                Pedido::updatePedidoEnPreparacion($pedido);
+                $payload = json_encode(array("mensaje" => 'Finalizo la preparacion del pedido'));
+            }
+            else
+            {
+                $payload = json_encode(array("mensaje" => 'Ud. no es del sector para agarrar el pedido'));
+            }
         }
         else
         {
@@ -332,6 +359,74 @@ class PedidoController extends Pedido implements IApiUsable{
         }
 
         $payload = json_encode(array("mensaje" => $arrayFinal));
+        $response->getBody()->write($payload);        
+
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+    
+    public static function PedidoMasVendido($request, $response, $args){
+        $arrayFinal = [];
+        $pedidos = Pedido::obtenerTodos();
+        $mayor = $pedidos[0];
+        for ($i=0; $i<count($pedidos); $i++)
+        {
+            if ($pedidos[$i]->cantidad > $mayor->cantidad)
+            {
+                $mayor = $pedidos[$i];
+            }
+        }
+
+        array_push($arrayFinal, $mayor);
+
+        for ($i=0; $i<count($pedidos); $i++)
+        {
+            if ($pedidos[$i] !== $mayor && $pedidos[$i]->cantidad == $mayor->cantidad)
+            {
+                $mayor = $pedidos[$i];
+                array_push($arrayFinal, $mayor);
+            }
+        }
+
+        $arrayFinal2 = [];
+        for ($i=0; $i<count($arrayFinal); $i++)
+        {
+            array_push($arrayFinal2, Producto::obtenerProducto($arrayFinal[$i]->idProducto));
+        }
+        $payload = json_encode(array("Lo que más se vendió" => $arrayFinal2));
+        $response->getBody()->write($payload);        
+
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public static function PedidoMenosVendido($request, $response, $args){
+        $arrayFinal = [];
+        $pedidos = Pedido::obtenerTodos();
+        $menos = $pedidos[0];
+        for ($i=0; $i<count($pedidos); $i++)
+        {
+            if ($pedidos[$i]->cantidad < $menos->cantidad)
+            {
+                $menos = $pedidos[$i];
+            }
+        }
+
+        array_push($arrayFinal, $menos);
+
+        for ($i=0; $i<count($pedidos); $i++)
+        {
+            if ($pedidos[$i] !== $menos && $pedidos[$i]->cantidad == $menos->cantidad)
+            {
+                $menos = $pedidos[$i];
+                array_push($arrayFinal, $menos);
+            }
+        }
+
+        $arrayFinal2 = [];
+        for ($i=0; $i<count($arrayFinal); $i++)
+        {
+            array_push($arrayFinal2, Producto::obtenerProducto($arrayFinal[$i]->idProducto));
+        }
+        $payload = json_encode(array("Lo que menos se vendió" => $arrayFinal2));
         $response->getBody()->write($payload);        
 
         return $response->withHeader('Content-Type', 'application/json');

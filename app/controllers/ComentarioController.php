@@ -42,7 +42,27 @@ class ComentarioController extends Comentario implements IApiUsable{
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
+    public function TraerPeores($request, $response, $args){
+        $lista = Comentario::obtenerTodos();
+        $lista_mejores = [];
+        $min_puntaje = 6; // el puntaje esta validado a ser entre (1-5)
 
+        foreach ($lista as $comentario) {
+            if ($comentario->puntaje < $min_puntaje) {
+                $min_puntaje = $comentario->puntaje;
+            }
+        }
+        foreach ($lista as $comentario)
+        {
+            if ($comentario->puntaje === $min_puntaje)
+                $lista_mejores[] = $comentario;    
+        }
+
+        $payload = json_encode(array("listaComentario" => $lista_mejores));
+
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json');
+    }
     public function CargarUno($request, $response, $args){
         $parametros = $request->getParsedBody();
 

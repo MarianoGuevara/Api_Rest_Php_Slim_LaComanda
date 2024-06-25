@@ -54,7 +54,7 @@
 
         public static function ValidarRolUsuario($rol){
             if($rol !== null){
-                if(empty($rol) || $rol != 'socio' && $rol != 'bartender' && $rol != 'cocinero' && $rol != 'mozo' && $rol != 'candybar'){
+                if(empty($rol) || $rol != 'socio' && $rol != 'bartender' && $rol != 'cocinero' && $rol != 'mozo' && $rol != 'candyman' && $rol != 'cervecero'){
                     return false;
                 }
             }
