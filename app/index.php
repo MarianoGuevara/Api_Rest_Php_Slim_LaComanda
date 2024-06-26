@@ -90,28 +90,34 @@ $app->group('/usuarios', function (RouteCollectorProxy $group) {
     $group->get('/registro-login', \UsuarioController::class . ':ObtenerRegistroLogin')
     ->add(\AutenticadorUsuario::class.':ValidarCampoIdUsuario');
 })
+->add(\LogMiddleware::class.':LogTransaccion')
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
 
 
 $app->group('/productos', function (RouteCollectorProxy $group) {
     $group->get('[/]', \ProductoController::class.':TraerTodos')
+    ->add(\LogMiddleware::class.':LogTransaccion')
     ->add(\Logger::class.':ValidarSesionIniciada');
 
     $group->get('/id', \ProductoController::class.':TraerUno')
+    ->add(\LogMiddleware::class.':LogTransaccion')
     ->add(\Logger::class.':ValidarSesionIniciada');
 
     $group->post('[/]', \ProductoController::class.':CargarUno')
+    ->add(\LogMiddleware::class.':LogTransaccion')
     ->add(\AutenticadorProductos::class.':ValidarCamposProductos')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
     ->add(\Logger::class.':ValidarSesionIniciada');
 
     $group->put('[/]', ProductoController::class.':ModificarUno')
+    ->add(\LogMiddleware::class.':LogTransaccion')
     ->add(\AutenticadorProductos::class.':ValidarCamposProductos')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
     ->add(\Logger::class.':ValidarSesionIniciada');    
 
     $group->delete('[/]', \ProductoController::class.':BorrarUno')
+    ->add(\LogMiddleware::class.':LogTransaccion')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
     ->add(\Logger::class.':ValidarSesionIniciada');
 });
@@ -164,7 +170,9 @@ $app->group('/mesas', function (RouteCollectorProxy $group) {
 
     $group->get('/menos-facturo', \MesaController::class.':MenosFacturo')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');
-})->add(\Logger::class.':ValidarSesionIniciada');
+})
+->add(\LogMiddleware::class.':LogTransaccion')
+->add(\Logger::class.':ValidarSesionIniciada');
 
 
 $app->group('/pedidos', function (RouteCollectorProxy $group) {
@@ -193,12 +201,12 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
 
     $group->get('/por/sector', \PedidoController::class.':TraerTodosPorSector');
 
-    $group->get('/sector/preparar/{idPedido}', \PedidoController::class.':RecibirPedidos');
+    $group->get('/sector/preparar', \PedidoController::class.':ComenzarPreparacion');
 
-    $group->get('/sector/preparado/{idPedido}', \PedidoController::class.':PrepararPedido')
+    $group->get('/sector/preparado', \PedidoController::class.':PrepararPedido')
     ->add(\AutenticadorUsuario::class.':VerificarUsuario');
 
-    $group->get('/entregar/pedido/{idPedido}', \PedidoController::class.':EntregarPedidoFinalizado')
+    $group->get('/entregar/pedido', \PedidoController::class.':EntregarPedidoFinalizado')
     ->add(\AutenticadorUsuario::class.':VerificarUsuario');   
 
     $group->get('/pedidosListos', \PedidoController::class.':ListarPedidosListos')
@@ -212,22 +220,27 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
 
     $group->get('/menos-vendidos', \PedidoController::class.':PedidoMenosVendido')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');    
-})->add(\Logger::class.':ValidarSesionIniciada');
+})
+->add(\LogMiddleware::class.':LogTransaccion')
+->add(\Logger::class.':ValidarSesionIniciada');
 
 
 $app->group('/cobrar', function (RouteCollectorProxy $group) {
     $group->post('[/]', \MesaController::class.':CerrarMesa')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');    
 })
+->add(\LogMiddleware::class.':LogTransaccion')
 ->add(\Logger::class.':ValidarSesionIniciada');
 
 
 $app->group('/archivos', function (RouteCollectorProxy $group) {
     $group->post('/cargarProductos', \ProductoController::class.'::CargarCSV');
 
-    $group->get('/descargarPedidos', \PedidoController::class.'::DescargarCSV');
+    $group->get('/descargarPedidos', \PedidoController::class.'::DescargarCSV')
+    ->add(\LogMiddleware::class.':LogTransaccion');
 
-    $group->get('/descargarUsuarios', \UsuarioController::class.':DescargarPDF');
+    $group->get('/descargarUsuarios', \UsuarioController::class.':DescargarPDF')
+    ->add(\LogMiddleware::class.':LogTransaccion');
 })
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
@@ -240,21 +253,27 @@ $app->post('/comentar', \ComentarioController::class.':CargarUno')
 ->add(function ($request, $handler){
     return \AutenticadorUsuario::ValidarPermisosDeRolDoble($request, $handler, 'cliente');
 })
+->add(\LogMiddleware::class.':LogTransaccion')
 ->add(\Logger::class.':ValidarSesionIniciada');
 
 
 $app->get('/mejores-comentarios', \ComentarioController::class.':TraerMejores')
+->add(\LogMiddleware::class.':LogTransaccion')
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
 
 $app->get('/peores-comentarios', \ComentarioController::class.':TraerPeores')
+->add(\LogMiddleware::class.':LogTransaccion')
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
 
 
 $app->group('/estadisticas', function (RouteCollectorProxy $group) {
     $group->get('/promedio', \PedidoController::class.':CalcularPromedioIngresos30Dias');
+    // MAS ESTADISTICAS?
+    // $group->get('/promedio', \PedidoController::class.':CalcularPromedioIngresos30Dias');
 })
+->add(\LogMiddleware::class.':LogTransaccion')
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
 
@@ -262,12 +281,5 @@ $app->group('/estadisticas', function (RouteCollectorProxy $group) {
 $app->get('/transacciones', \LogTransaccionesController::class.':GetTransacciones')
 ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol')
 ->add(\Logger::class.':ValidarSesionIniciada');
-
-
-$app->add(\LogMiddleware::class.':LogTransaccion');
-
-
-
-
 
 $app->run();

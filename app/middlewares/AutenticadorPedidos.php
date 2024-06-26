@@ -15,7 +15,7 @@
 
         public static function ValidarCamposAlta($request, $handler){
             $parametros = $request->getParsedBody();
-            if(isset($parametros['codigoMesa'], $parametros['idProducto'], $parametros['nombreCliente'], $parametros['cantidad'])){
+            if(isset($parametros['codigoMesa'], $parametros['nombreCliente'], $parametros['productos'])){
 
                 return $handler->handle($request);
             }

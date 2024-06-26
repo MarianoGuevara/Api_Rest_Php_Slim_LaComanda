@@ -4,17 +4,13 @@ class Mesa{
     public $id;
     public $codigo;
     public $estado; // libre, en uso, cerrada(admin)
-    public $nombreMozo;
     public $cobro;
-    public $usos;
     
     public function crearMesa(){
         $objAccesoDatos = AccesoDatos::obtenerInstancia();
-        $consulta = $objAccesoDatos->prepararConsulta("INSERT INTO mesas (codigo, estado, nombreMozo, usos) VALUES (:codigo, :estado, :nombreMozo, :usos)");
+        $consulta = $objAccesoDatos->prepararConsulta("INSERT INTO mesas (codigo, estado) VALUES (:codigo, :estado)");
         $consulta->bindValue(':codigo', $this->codigo, PDO::PARAM_STR);
         $consulta->bindValue(':estado', 'libre', PDO::PARAM_STR);
-        $consulta->bindValue(':nombreMozo', $this->nombreMozo, PDO::PARAM_STR);
-        $consulta->bindValue(':usos', $this->usos, PDO::PARAM_INT);
 
         $consulta->execute();
 
@@ -49,10 +45,9 @@ class Mesa{
 
     public static function modificarMesa($mesa){
         $objAccesoDato = AccesoDatos::obtenerInstancia();
-        $consulta = $objAccesoDato->prepararConsulta("UPDATE mesas SET nombreMozo = :nombreMozo, estado = :estado, cobro = :cobro WHERE id = :id");
+        $consulta = $objAccesoDato->prepararConsulta("UPDATE mesas SET estado = :estado, cobro = :cobro WHERE id = :id");
         $consulta->bindValue(':id', $mesa->id, PDO::PARAM_INT);
         $consulta->bindValue(':estado', $mesa->estado, PDO::PARAM_STR);
-        $consulta->bindValue(':nombreMozo', $mesa->nombreMozo, PDO::PARAM_STR);
         $consulta->bindValue(':cobro', $mesa->cobro, PDO::PARAM_INT);
         $consulta->execute();
     }
@@ -83,11 +78,9 @@ class Mesa{
 
     public static function CobrarYLiberarMesa($codigo){
         $objAccesoDato = AccesoDatos::obtenerInstancia();
-        $mesaAntes = Mesa::obtenerMesaCodigoMesa($codigo);
-        $consulta = $objAccesoDato->prepararConsulta("UPDATE mesas SET estado = :estado, usos = :usos WHERE codigo = :codigo");
+        $consulta = $objAccesoDato->prepararConsulta("UPDATE mesas SET estado = :estado WHERE codigo = :codigo");
         $consulta->bindValue(':codigo', $codigo, PDO::PARAM_STR);
         $consulta->bindValue(':estado', 'libre', PDO::PARAM_STR);
-        $consulta->bindValue(':usos', $mesaAntes->usos+=1, PDO::PARAM_STR);
         $consulta->execute();
     }
 }

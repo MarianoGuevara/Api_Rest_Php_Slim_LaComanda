@@ -1,7 +1,6 @@
 <?php
 require_once './models/Mesa.php';
 require_once './models/Pedido.php';
-// require_once 'PedidoC.php';
 require_once './interfaces/IApiUsable.php';
 class MesaController extends Mesa implements IApiUsable{
     public function TraerUno($request, $response, $args){
@@ -49,20 +48,11 @@ class MesaController extends Mesa implements IApiUsable{
     }
 
     public function CargarUno($request, $response, $args){
-        $cookies = $request->getCookieParams();
-        if(isset($cookies['JWT'])){
-            $token = $cookies['JWT'];
-            $datos = AutentificadorJWT::ObtenerData($token);
-            $mesa = new Mesa();
-            $mesa->codigo = self::generarCodigoMesa();
-            $mesa->usos = 0;
-            $mesa->nombreMozo = $datos->nombre;
-            $mesa->crearMesa();
-            $payload = json_encode(array("mensaje" => "Mesa creada con exito - puede empezar a regitrar pedidos con el codigo [ $mesa->codigo ]"));
-        }
-        else{
-            $payload = json_encode(array("mensaje" => "Datos invalidos"));
-        }
+        $mesa = new Mesa();
+        $mesa->codigo = self::generarCodigoMesa();
+        $mesa->crearMesa();
+        $payload = json_encode(array("mensaje" => "Mesa creada con exito - puede empezar a regitrar pedidos con el codigo [ $mesa->codigo ]"));
+    
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
@@ -104,35 +94,22 @@ class MesaController extends Mesa implements IApiUsable{
     public static function CerrarMesa($request, $response, $args) {
         $parametros = $request->getParsedBody();
 
-        if(isset($parametros['id']))
+        if(isset($parametros['idMesa']))
         {
-            $idMesa = $parametros['id'];
+            $idMesa = $parametros['idMesa'];
 
-            $listaPedidos = Pedido::obtenerPedidosPorMesa($idMesa);
+            $pedido = Pedido::obtenerPedido($parametros["codigoPedido"]);
             $mesa = Mesa::obtenerMesa($idMesa);
         
-            $precioACobrar = 0;
-            $noCompleta = false;
-
-            foreach($listaPedidos as $pedido){
-                var_dump($pedido->estado);
-                if($pedido->estado === 'completado'){
-                    $precioACobrar += $pedido->importe;
-                }
-                else{
-                    $noCompleta = true;
-                    break;
-                }
-            }
-            if ($noCompleta == false)
+            if ($pedido->fechaCierre != null)
             {
-                $mesa->cobro = $precioACobrar;
+                $mesa->cobro += $pedido->importe;
                 Mesa::modificarMesa($mesa);
                 Mesa::CobrarYLiberarMesa($mesa->codigo);
-                $payload = json_encode(array("mensaje" => "Mesa cobrada - Total a pagar: [ ".$precioACobrar." ]"));
+                $payload = json_encode(array("mensaje" => "Mesa cobrada - Total a pagar: [ ".$pedido->importe." ]"));
             }
             else{
-                $payload = json_encode(array("mensaje" => "Mesa no puede liberarse y cobrarse aún. Tiene alguna parte del pedido no entregada"));
+                $payload = json_encode(array("mensaje" => "Mesa no puede liberarse y cobrarse aún. Su pedido no fue entregado"));
             }
         }
         else{
@@ -204,26 +181,29 @@ class MesaController extends Mesa implements IApiUsable{
         {
             // $codigoPedido = $parametros["codigoPedido"];
 
-            $mesa = Mesa::obtenerMesaCodigoMesa($parametros['codigoMesa']);
-            $lista = Pedido::obtenerPedidosPorMesa($mesa->id);
+            // $mesa = Mesa::obtenerMesaCodigoMesa($parametros['codigoMesa']);
+            // $lista = Pedido::obtenerPedidosPorMesa($mesa->id);
+            $pedido = Pedido::obtenerPedido($parametros["numPedido"]);
 
-            $tds_no_null = true;
-            $time = $lista[0];
-            for ($i=0; $i<count($lista); $i++)
+            if ($pedido != false && $pedido->tiempoPreparacion != null)
             {
-                if ($lista[$i]->tiempoPreparacion == null)
-                {
-                    $tds_no_null = false;
-                    break;
-                }
-                if ($lista[$i]->tiempoPreparacion > $time->tiempoPreparacion)
-                {
-                    $time = $lista[$i];
-                }
-            }
+                $fechaActual = new DateTime();
+                $fechaInicioPedido = new DateTime($pedido->fechaInicio);
 
-            if ($tds_no_null) $payload = json_encode(array("mensaje" => "El pedido tardará: " . $time->tiempoPreparacion));
+    
+                $diferencia = $fechaInicioPedido->diff($fechaActual);
+    
+                $minutosTranscurridos = $diferencia->days * 24 * 60;
+                $minutosTranscurridos += $diferencia->h * 60;
+                $minutosTranscurridos += $diferencia->i;
+    
+                $tiempoRestante = $pedido->tiempoPreparacion - $minutosTranscurridos;
+
+                if ($tiempoRestante > 0) $payload = json_encode(array("mensaje" => "El pedido tardará: " . $tiempoRestante));
+                else $payload = json_encode(array("mensaje" => "El pedido está tardío con demora de: " . str_replace("-", "", (string)($tiempoRestante)) . " minutos"));
+            }
             else $payload = json_encode(array("mensaje" => "La mesa tiene una o mas partes del pedido que no estan en preparacion aun."));
+            
             $response->getBody()->write($payload);        
         }
         else    
@@ -280,27 +260,44 @@ class MesaController extends Mesa implements IApiUsable{
     }
     public static function MesaMasUsada($request, $response, $args){
         $arrayFinal = [];
-        $mesas = Mesa::obtenerTodos();
-        $mayor = $mesas[0];
-        for ($i=0; $i<count($mesas); $i++)
+        $pedidos = Pedido::obtenerTodos();
+
+        for ($i=0; $i<count($pedidos); $i++)
         {
-            if ($mesas[$i]->usos > $mayor->usos)
+            if (isset($arrayFinal[$pedidos[$i]->idMesa]) == false)
             {
-                $mayor = $mesas[$i];
+                $contador = 0;
+                for ($j=0; $j<count($pedidos); $j++)
+                {
+                    if ($pedidos[$j]->idMesa == $pedidos[$i]->idMesa) 
+                    {
+                        $contador += 1;
+                    }
+                }
+                $arrayFinal[$pedidos[$i]->idMesa] = $contador;
             }
         }
 
-        array_push($arrayFinal, $mayor);
-
-        for ($i=0; $i<count($mesas); $i++)
+        $flag = false;
+        foreach ($arrayFinal as $mesa => $usos)
         {
-            if ($mesas[$i] !== $mayor && $mesas[$i]->usos == $mayor->usos)
+            if (!$flag || $usos > $masUsos)
             {
-                $mayor = $mesas[$i];
-                array_push($arrayFinal, $mayor);
+                $flag = true;
+                $masUsos = $usos;
+                $masId = $mesa;
             }
         }
-        $payload = json_encode(array("Masa/s con mas usos" => $arrayFinal));
+        $arrayMayores = [$masId => $masUsos];
+        foreach ($arrayFinal as $mesa => $usos)
+        {
+            if ($mesa != $masId && $usos == $masUsos)
+            {
+                $arrayMayores[$mesa] = $usos;
+            }
+        }
+
+        $payload = json_encode(array("Masa/s con mas usos" => $arrayMayores));
         $response->getBody()->write($payload);        
 
         return $response->withHeader('Content-Type', 'application/json');
@@ -308,27 +305,44 @@ class MesaController extends Mesa implements IApiUsable{
 
     public static function MesaMenosUsada($request, $response, $args){
         $arrayFinal = [];
-        $mesas = Mesa::obtenerTodos();
-        $menor = $mesas[0];
-        for ($i=0; $i<count($mesas); $i++)
+        $pedidos = Pedido::obtenerTodos();
+
+        for ($i=0; $i<count($pedidos); $i++)
         {
-            if ($mesas[$i]->usos < $menor->usos)
+            if (isset($arrayFinal[$pedidos[$i]->idMesa]) == false)
             {
-                $menor = $mesas[$i];
+                $contador = 0;
+                for ($j=0; $j<count($pedidos); $j++)
+                {
+                    if ($pedidos[$j]->idMesa == $pedidos[$i]->idMesa) 
+                    {
+                        $contador += 1;
+                    }
+                }
+                $arrayFinal[$pedidos[$i]->idMesa] = $contador;
             }
         }
 
-        array_push($arrayFinal, $menor);
-
-        for ($i=0; $i<count($mesas); $i++)
+        $flag = false;
+        foreach ($arrayFinal as $mesa => $usos)
         {
-            if ($mesas[$i] !== $menor && $mesas[$i]->usos == $menor->usos)
+            if (!$flag || $usos < $masUsos)
             {
-                $menor = $mesas[$i];
-                array_push($arrayFinal, $menor);
+                $flag = true;
+                $masUsos = $usos;
+                $masId = $mesa;
             }
         }
-        $payload = json_encode(array("Masa/s con mas usos" => $arrayFinal));
+        $arrayMayores = [$masId => $masUsos];
+        foreach ($arrayFinal as $mesa => $usos)
+        {
+            if ($mesa != $masId && $usos == $masUsos)
+            {
+                $arrayMayores[$mesa] = $usos;
+            }
+        }
+
+        $payload = json_encode(array("Masa/s con menos usos" => $arrayMayores));
         $response->getBody()->write($payload);        
 
         return $response->withHeader('Content-Type', 'application/json');

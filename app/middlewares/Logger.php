@@ -62,7 +62,7 @@
                         throw new Exception('Usted no es un usuario activo');
                     }
                 }
-                catch (Exception $e) {throw $e;}    
+                catch (Exception $e) {throw new Exception($e->getMessage());}
             }
             throw new Exception('Debe haber iniciado sesion');
         }

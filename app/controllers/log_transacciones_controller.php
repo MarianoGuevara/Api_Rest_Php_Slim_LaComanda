@@ -31,8 +31,12 @@
 
             foreach ($transacciones as $transaccion)
             {
-                $usuario = Usuario::obtenerUsuario($transaccion->idUsuario);
-                $sectores[$usuario->rol] += 1;
+                if (isset($usuario->rol) && $usuario->rol != false && $usuario->rol != null)
+                {
+                    $usuario = Usuario::obtenerUsuario($transaccion->idUsuario);
+                    $sectores[$usuario->rol] += 1;
+                }
+                
             }
 
             $payload = json_encode(["cantidadOperaciones" => $sectores]);
@@ -48,10 +52,15 @@
             foreach ($transacciones as $transaccion)
             {
                 $usuario = Usuario::obtenerUsuario($transaccion->idUsuario);
-                if (isset($sectores[$usuario->rol][$usuario->id]))
-                    $sectores[$usuario->rol][strval($usuario->id)] += 1;
-                else
-                    $sectores[$usuario->rol][strval($usuario->id)] = 1;
+
+                if (isset($usuario->rol) && $usuario->rol != false && $usuario->rol != null)
+                {
+                    if (isset($sectores[$usuario->rol][$usuario->id]))
+                        $sectores[$usuario->rol][strval($usuario->id)] += 1;
+                    else
+                        $sectores[$usuario->rol][strval($usuario->id)] = 1;
+                }
+                
             }
 
             $payload = json_encode(["cantidadOperaciones" => $sectores]);

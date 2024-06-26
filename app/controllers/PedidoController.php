@@ -2,6 +2,7 @@
 require_once './models/Pedido.php';
 require_once './models/Producto.php';
 require_once './models/Mesa.php';
+require_once './models/DetallePedido.php';
 require_once 'MesaController.php';
 require_once './interfaces/IApiUsable.php';
 class PedidoController extends Pedido implements IApiUsable{
@@ -42,22 +43,41 @@ class PedidoController extends Pedido implements IApiUsable{
         return $response->withHeader('Content-Type', 'application/json');
     }
     public function CargarUno($request, $response, $args){
+        $cookies = $request->getCookieParams();
+        $token = $cookies["JWT"];
+        $datos = AutentificadorJWT::ObtenerData($token);
+
         $parametros = $request->getParsedBody();
         $mesa = MesaController::obtenerMesaCodigoMesa($parametros["codigoMesa"]);
 
-        $producto = Producto::obtenerProducto($parametros['idProducto']);
-
         $pedido = new Pedido();
+        $pedido->idMozo = $datos->id;
         $pedido->codigoPedido = self::generarCodigoPedido();
         $pedido->idMesa = $mesa->id;
-        $pedido->idProducto = $parametros['idProducto'];
-        $pedido->sector = self::ChequearSector($producto->tipo);
-        $pedido->cantidad = $parametros['cantidad'];
         $pedido->nombreCliente = $parametros['nombreCliente'];
-        $pedido->importe = $parametros['cantidad'] * $producto->precio;
-        $pedido->tiempoPreparacion = null;
 
-        $pedido->crearPedido();
+        $pedido->productos = $parametros["productos"];
+        $total = 0;
+        foreach ($pedido->productos as $producto) {
+            $productoActual = Producto::obtenerProducto($producto['idProducto']);
+            $total += $productoActual->precio * $producto['cantidad'];
+        }
+        $pedido->importe = $total;
+
+        $idPedido = $pedido->crearPedido();
+
+        $mesa = Mesa::obtenerMesaCodigoMesa($parametros["codigoMesa"]);
+        $mesa->estado = "en uso";
+        Mesa::modificarMesa($mesa);
+
+        var_dump($idPedido);
+        foreach ($pedido->productos as $producto) {
+            $productoActual = Producto::obtenerProducto($producto['idProducto']);
+            $sector = self::ChequearSector($productoActual->tipo);
+            DetallePedido::crearDetallePedido(null, $idPedido, $productoActual->id, $producto["cantidad"], $sector);
+            $total += $productoActual->precio * $producto['cantidad'];
+        }
+
         $payload = json_encode(array("mensaje" => "Pedido creado con exito"));
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
@@ -119,16 +139,16 @@ class PedidoController extends Pedido implements IApiUsable{
             $datos = AutentificadorJWT::ObtenerData($token);
 
             if($datos->rol == 'cocinero'){
-                $lista = Pedido::obtenerTodosPorSector('cocina');
+                $lista = DetallePedido::obtenerTodosPorSector('cocina');
             }
             if($datos->rol == 'bartender'){
-                $lista = Pedido::obtenerTodosPorSector('barra');
+                $lista = DetallePedido::obtenerTodosPorSector('barra');
             }
             if($datos->rol == 'cervecero'){
-                $lista = Pedido::obtenerTodosPorSector('cervezas');
+                $lista = DetallePedido::obtenerTodosPorSector('cervezas');
             }
             if($datos->rol == 'candyman'){
-                $lista = Pedido::obtenerTodosPorSector('candybar');
+                $lista = DetallePedido::obtenerTodosPorSector('candybar');
             }
             if ($datos->rol == 'socio' || $datos->rol == 'mozo')
             {
@@ -143,7 +163,7 @@ class PedidoController extends Pedido implements IApiUsable{
         return $response->withHeader('Content-Type', 'application/json');
     }
 
-    public static function RecibirPedidos($request, $response, $args) {
+    public static function ComenzarPreparacion($request, $response, $args) {
         $parametros = $request->getQueryParams();
         $cookie = $request->getCookieParams();
 
@@ -153,8 +173,7 @@ class PedidoController extends Pedido implements IApiUsable{
                 $token = $cookie['JWT'];
                 $datos = AutentificadorJWT::ObtenerData($token);
 
-                $idPedido = $args['idPedido'];
-                $pedido = Pedido::obtenerPedidoIndividual($idPedido);
+                $pedido = DetallePedido::obtenerDetalleIndividual($parametros['idDetalle']);
 
                 $vale = false;
                 if($datos->rol == 'cocinero' && $pedido->sector == "cocina"){
@@ -169,13 +188,10 @@ class PedidoController extends Pedido implements IApiUsable{
                 if($datos->rol == 'cervecero' && $pedido->sector == "cerveza"){
                     $vale = true;
                 }
-                
+
                 if ($vale)
                 {
-                    $mesa = Mesa::obtenerMesa($pedido->idMesa);
-                    $mesa->estado = "en uso";
-                    Pedido::updatePedidoPendiente($pedido, $parametros["tiempoPreparacion"]);
-                    Mesa::modificarMesa($mesa);
+                    DetallePedido::comenzarPreparacionDetallePedido((int)($parametros["idDetalle"]), $parametros["tiempoPreparacion"], $datos->id);
                     $payload = json_encode(array("mensaje" => 'Comenzo la preparacion del pedido'));
                 }
                 else
@@ -198,33 +214,43 @@ class PedidoController extends Pedido implements IApiUsable{
 
     public static function PrepararPedido($request, $response, $args) {
         $cookie = $request->getCookieParams();
+        $parametros = $request->getQueryParams();
 
-        $idPedido = $args['idPedido'];
-        $pedido = Pedido::obtenerPedidoIndividual($idPedido);
-        var_dump($pedido->sector);
+        $detallePedido = DetallePedido::obtenerDetalleIndividual($parametros["idDetalle"]);
 
-        if ($pedido->estado == "en preparacion")
+        $fechaActual = new DateTime();
+        $fechaInicioPedido = new DateTime($detallePedido->fechaInicio);
+
+        $diferencia = $fechaInicioPedido->diff($fechaActual);
+
+        $minutosTranscurridos = $diferencia->days * 24 * 60;
+        $minutosTranscurridos += $diferencia->h * 60;
+        $minutosTranscurridos += $diferencia->i;
+
+        $tiempoRestante = $detallePedido->tiempoPreparacion - $minutosTranscurridos; // Me fijo que haya pasado el tiempo antes
+
+        if ($detallePedido->estado == "en preparacion" && $tiempoRestante < 1)
         {
             $token = $cookie['JWT'];
             $datos = AutentificadorJWT::ObtenerData($token);
             var_dump($datos->rol);
             $vale = false;
-            if($datos->rol == 'cocinero' && $pedido->sector == "cocina"){
+            if($datos->rol == 'cocinero' && $detallePedido->sector == "cocina"){
                 $vale = true;
             }
-            if($datos->rol == 'bartender' && $pedido->sector == "barra"){
+            if($datos->rol == 'bartender' && $detallePedido->sector == "barra"){
                 $vale = true;
             }
-            if($datos->rol == 'candyman' && $pedido->sector == "candybar"){
+            if($datos->rol == 'candyman' && $detallePedido->sector == "candybar"){
                 $vale = true;
             }
-            if($datos->rol == 'cervecero' && $pedido->sector == "cerveza"){
+            if($datos->rol == 'cervecero' && $detallePedido->sector == "cerveza"){
                 $vale = true;
             }
             
             if ($vale)
             {
-                Pedido::updatePedidoEnPreparacion($pedido);
+                DetallePedido::updateDetallePedidoEnPreparacion($detallePedido);
                 $payload = json_encode(array("mensaje" => 'Finalizo la preparacion del pedido'));
             }
             else
@@ -241,11 +267,12 @@ class PedidoController extends Pedido implements IApiUsable{
     }
 
     public static function EntregarPedidoFinalizado($request, $response, $args) {
-        $idPedido = $args['idPedido'];
-        $pedido = Pedido::obtenerPedidoIndividual($idPedido);
+        $parametros = $request->getQueryParams();
+
+        $pedido = Pedido::obtenerPedido($parametros["codigoPedido"]);
         if ($pedido != null && $pedido->estado == "preparado")
         {
-            Pedido::LlevarPedido($idPedido);
+            Pedido::LlevarPedido($pedido->id);
             $payload = json_encode(array("mensaje" => 'Pedido entregado. Que lo goze'));
         }
         else
@@ -256,23 +283,45 @@ class PedidoController extends Pedido implements IApiUsable{
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
-
     public static function DescargarCSV($request, $response, $args) {
-        $pedidos = Pedido::obtenerTodosFinalizados('completado');
-        $fecha = new DateTime(date('Y-m-d'));
-        $path = date_format($fecha, 'Y-m-d').'pedidos_completados.csv';
-        $archivo = fopen($path, 'w');
-        $encabezado = array('id','codigoPedido','idMesa','idProducto','nombreCliente','sector','estado','importe','cantidad','fechaInicio','fechaCierre','tiempoPreparacion');
-        fputcsv($archivo, $encabezado);
-        foreach($pedidos as $pedido){
-            $linea = array($pedido->id, $pedido->codigoPedido, $pedido->idMesa, $pedido->idProducto, $pedido->nombreCliente, $pedido->sector, $pedido->estado, $pedido->importe, $pedido->cantidad, $pedido->fechaInicio, $pedido->fechaCierre, $pedido->tiempoPreparacion);
-            fputcsv($archivo, $linea);
-        }
-        $payload = json_encode(array("mensaje" => 'Archivo de Pedidos del dia de la fecha creado exitosamente'));
-        $response->getBody()->write($payload);
-        return $response->withHeader('Content-Type', 'application/json');
-    }
+        $pedidos = Pedido::obtenerTodosFinalizados('entregado');
+        $filename = "pedidos_completados.csv";
+    
+        $response = $response->withHeader('Content-Type', 'text/csv')
+                            ->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    
+        $output = fopen('php://output', 'w');
+        $encabezado = array('id', 'codigoPedido', 'idMesa', 'nombreCliente', 'estado', 'importe', 'fechaInicio', 'fechaCierre', 'tiempoPreparacion', 'productos');
+        fputcsv($output, $encabezado);
 
+        foreach($pedidos as $pedido) {
+            $str = "[";
+            $detalles = DetallePedido::obtenerDetalleDeUnPedido($pedido->id);
+            foreach ($detalles as $producto)
+            {
+                $str .= $producto["id"] . "-";
+                
+            }
+            $str .= "]";
+            $linea = array(
+                $pedido->id,
+                $pedido->codigoPedido,
+                $pedido->idMesa,
+                $pedido->nombreCliente,
+                $pedido->estado,
+                $pedido->importe,
+                $pedido->fechaInicio,
+                $pedido->fechaCierre,
+                $pedido->tiempoPreparacion,
+                $str
+            );
+            fputcsv($output, $linea);
+        }
+    
+        fclose($output);
+    
+        return $response;
+    }
     public static function ChequearSector($tipo){
         if($tipo === 'comida'){
             return 'cocina';
@@ -291,7 +340,7 @@ class PedidoController extends Pedido implements IApiUsable{
         $fechaActual = date("Y-m-d H:i:s");  // Fecha y hora actuales en formato "YYYY-MM-DD HH:mm:ss"
         $fechaActualObj = new DateTime($fechaActual);
         $fechaLimite = $fechaActualObj->modify('-30 days');
-        $pedidos = Pedido::obtenerTodosFinalizados("completado");
+        $pedidos = Pedido::obtenerTodosFinalizados("entregado");
         $acumulador = 0;
         foreach ($pedidos as $pedido)
         {
@@ -307,6 +356,28 @@ class PedidoController extends Pedido implements IApiUsable{
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
+
+    // public function CalcularPedidosDeEmpleado30Dias($request, $response, $args)
+    // {
+    //     $fechaActual = date("Y-m-d H:i:s");  // Fecha y hora actuales en formato "YYYY-MM-DD HH:mm:ss"
+    //     $fechaActualObj = new DateTime($fechaActual);
+    //     $fechaLimite = $fechaActualObj->modify('-30 days');
+    //     $pedidos = Pedido::obtenerTodosFinalizados("entregado");
+    //     $acumulador = 0;
+    //     foreach ($pedidos as $pedido)
+    //     {
+    //         $fechaCierre = new DateTime($pedido->fechaCierre);
+    //         if($fechaCierre >= $fechaLimite)
+    //         {
+    //             $acumulador += $pedido->importe;
+    //         }
+    //     }
+    //     $promedio = $acumulador / 30;
+
+    //     $payload = json_encode(array("mensaje" => "El importe promedio en los ultimos 30 dias fue de: " . $promedio));
+    //     $response->getBody()->write($payload);
+    //     return $response->withHeader('Content-Type', 'application/json');
+    // }
 
     public function ListarProductosPorVentas($request, $response, $args)
     {   
@@ -363,36 +434,28 @@ class PedidoController extends Pedido implements IApiUsable{
 
         return $response->withHeader('Content-Type', 'application/json');
     }
-    
+
     public static function PedidoMasVendido($request, $response, $args){
         $arrayFinal = [];
-        $pedidos = Pedido::obtenerTodos();
-        $mayor = $pedidos[0];
-        for ($i=0; $i<count($pedidos); $i++)
-        {
-            if ($pedidos[$i]->cantidad > $mayor->cantidad)
-            {
-                $mayor = $pedidos[$i];
-            }
-        }
-
-        array_push($arrayFinal, $mayor);
+        $pedidos = DetallePedido::obtenerDetallePedidos();
 
         for ($i=0; $i<count($pedidos); $i++)
         {
-            if ($pedidos[$i] !== $mayor && $pedidos[$i]->cantidad == $mayor->cantidad)
+            if (isset($arrayFinal[Producto::obtenerProducto($pedidos[$i]["idProducto"])->nombre]) == false)
             {
-                $mayor = $pedidos[$i];
-                array_push($arrayFinal, $mayor);
+                $contador = 0;
+                for ($j=0; $j<count($pedidos); $j++)
+                {
+                    if ($pedidos[$j]["idProducto"] == $pedidos[$i]["idProducto"]) 
+                    {
+                        $contador += 1;
+                    }
+                }
+                $arrayFinal[Producto::obtenerProducto($pedidos[$i]["idProducto"])->nombre] = $contador;
             }
         }
 
-        $arrayFinal2 = [];
-        for ($i=0; $i<count($arrayFinal); $i++)
-        {
-            array_push($arrayFinal2, Producto::obtenerProducto($arrayFinal[$i]->idProducto));
-        }
-        $payload = json_encode(array("Lo que más se vendió" => $arrayFinal2));
+        $payload = json_encode(array("Lo que se vendió" => $arrayFinal));
         $response->getBody()->write($payload);        
 
         return $response->withHeader('Content-Type', 'application/json');
@@ -400,33 +463,25 @@ class PedidoController extends Pedido implements IApiUsable{
 
     public static function PedidoMenosVendido($request, $response, $args){
         $arrayFinal = [];
-        $pedidos = Pedido::obtenerTodos();
-        $menos = $pedidos[0];
-        for ($i=0; $i<count($pedidos); $i++)
-        {
-            if ($pedidos[$i]->cantidad < $menos->cantidad)
-            {
-                $menos = $pedidos[$i];
-            }
-        }
-
-        array_push($arrayFinal, $menos);
+        $pedidos = DetallePedido::obtenerDetallePedidos();
 
         for ($i=0; $i<count($pedidos); $i++)
         {
-            if ($pedidos[$i] !== $menos && $pedidos[$i]->cantidad == $menos->cantidad)
+            if (isset($arrayFinal[Producto::obtenerProducto($pedidos[$i]["idProducto"])->nombre]) == false)
             {
-                $menos = $pedidos[$i];
-                array_push($arrayFinal, $menos);
+                $contador = 0;
+                for ($j=0; $j<count($pedidos); $j++)
+                {
+                    if ($pedidos[$j]["idProducto"] == $pedidos[$i]["idProducto"]) 
+                    {
+                        $contador += 1;
+                    }
+                }
+                $arrayFinal[Producto::obtenerProducto($pedidos[$i]["idProducto"])->nombre] = $contador;
             }
         }
 
-        $arrayFinal2 = [];
-        for ($i=0; $i<count($arrayFinal); $i++)
-        {
-            array_push($arrayFinal2, Producto::obtenerProducto($arrayFinal[$i]->idProducto));
-        }
-        $payload = json_encode(array("Lo que menos se vendió" => $arrayFinal2));
+        $payload = json_encode(array("Lo que se vendió" => $arrayFinal));
         $response->getBody()->write($payload);        
 
         return $response->withHeader('Content-Type', 'application/json');
