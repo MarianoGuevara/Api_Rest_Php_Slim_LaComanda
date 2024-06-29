@@ -22,15 +22,20 @@ class PedidoController extends Pedido implements IApiUsable{
     }
 
     public function TraerFueraDeTiempo($request, $response, $args){
-        $lista = Pedido::obtenerTodos();
+        $parametros = $request->getQueryParams();
+        
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual;    
+        $lista = Pedido::obtenerTodosFecha($parametros["fecha"]);
+
         $listaFueraTiempo = [];
         foreach ($lista as $pedido)
         {
             if (isset($pedido->fechaCierre))
             {
-                $inicio = new DateTime($pedido->fechaInicio); // veo fechas de inicio y cierre.
+                $inicio = new DateTime($pedido->fechaInicio); // veo fechas de inicio y cierre-> cuando arrancó y se completo el pedido
                 $cierre = new DateTime($pedido->fechaCierre);
-                $diferencia = $inicio->diff($cierre);
+                $diferencia = $inicio->diff($cierre); // calculo la diferencia entre ambas y la llevo a minutos
                 $minutos = $diferencia->days * 24 * 60;
                 $minutos += $diferencia->h * 60;
                 $minutos += $diferencia->i; 
@@ -87,8 +92,19 @@ class PedidoController extends Pedido implements IApiUsable{
         $parametros = $request->getParsedBody();
         if(isset($parametros['id'])){
             $pedido = Pedido::obtenerPedidoIndividual($parametros['id']);
-            Pedido::borrarPedido($pedido);
-            $payload = json_encode(array("mensaje" => "Pedido borrado con exito"));
+            if ($pedido->estado != "entregado" && $pedido->estado != "cancelado")
+            {
+                $detalles = DetallePedido::obtenerDetalleDeUnPedido($pedido->id);
+                var_dump($detalles);
+                for ($i=0; $i<count($detalles); $i++)
+                {
+                    DetallePedido::cancelarDetallePedido($detalles[$i]["id"]);
+                }
+
+                Pedido::borrarPedido($pedido);
+                $payload = json_encode(array("mensaje" => "Pedido borrado con exito"));
+            }
+            else $payload = json_encode(array("mensaje" => "Pedido ya está entregado o cancelado. No se puede cancelar"));
         }
         else{
             $payload = json_encode(array("mensaje" => "Debe ingresar un id de pedido valido"));
@@ -335,7 +351,7 @@ class PedidoController extends Pedido implements IApiUsable{
         else return "cerveza";
     }
 
-    public function CalcularPromedioIngresos30Dias($request, $response, $args)
+    public function EstadisticasCalcularPromedioIngresos($request, $response, $args)
     {
         $fechaActual = date("Y-m-d H:i:s");  // Fecha y hora actuales en formato "YYYY-MM-DD HH:mm:ss"
         $fechaActualObj = new DateTime($fechaActual);
@@ -435,9 +451,13 @@ class PedidoController extends Pedido implements IApiUsable{
         return $response->withHeader('Content-Type', 'application/json');
     }
 
-    public static function PedidoMasVendido($request, $response, $args){
+    public static function PedidosVendidos($request, $response, $args){
+        $parametros = $request->getQueryParams();
         $arrayFinal = [];
-        $pedidos = DetallePedido::obtenerDetallePedidos();
+
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual;    
+        $pedidos = DetallePedido::obtenerDetallePedidosFecha($parametros["fecha"]);
 
         for ($i=0; $i<count($pedidos); $i++)
         {
@@ -454,34 +474,41 @@ class PedidoController extends Pedido implements IApiUsable{
                 $arrayFinal[Producto::obtenerProducto($pedidos[$i]["idProducto"])->nombre] = $contador;
             }
         }
+        return $arrayFinal;
+    }
 
-        $payload = json_encode(array("Lo que se vendió" => $arrayFinal));
+    public static function PedidoMasVendido($request, $response, $args){
+        $arrayFinal = PedidoController::PedidosVendidos($request, $response, $args);
+        arsort($arrayFinal);
+        $valoresMasAltos = array_slice($arrayFinal, 0, 1, true);
+                                                    // agarra primero
+
+        $payload = json_encode(array("Valor mas alto" => $valoresMasAltos));
         $response->getBody()->write($payload);        
 
         return $response->withHeader('Content-Type', 'application/json');
     }
 
     public static function PedidoMenosVendido($request, $response, $args){
-        $arrayFinal = [];
-        $pedidos = DetallePedido::obtenerDetallePedidos();
+        $arrayFinal = PedidoController::PedidosVendidos($request, $response, $args);
+        asort($arrayFinal);
+        $valoresMasAltos = array_slice($arrayFinal, 0, 1, true);
+                                                    // agarra primero
 
-        for ($i=0; $i<count($pedidos); $i++)
-        {
-            if (isset($arrayFinal[Producto::obtenerProducto($pedidos[$i]["idProducto"])->nombre]) == false)
-            {
-                $contador = 0;
-                for ($j=0; $j<count($pedidos); $j++)
-                {
-                    if ($pedidos[$j]["idProducto"] == $pedidos[$i]["idProducto"]) 
-                    {
-                        $contador += 1;
-                    }
-                }
-                $arrayFinal[Producto::obtenerProducto($pedidos[$i]["idProducto"])->nombre] = $contador;
-            }
-        }
+        $payload = json_encode(array("Valor mas alto" => $valoresMasAltos));
+        $response->getBody()->write($payload);        
 
-        $payload = json_encode(array("Lo que se vendió" => $arrayFinal));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public static function CancelarPedido($request, $response, $args){
+        
+        $arrayFinal = PedidoController::PedidosVendidos($request, $response, $args);
+        asort($arrayFinal);
+        $valoresMasAltos = array_slice($arrayFinal, 0, 1, true);
+                                                    // agarra primero
+
+        $payload = json_encode(array("Valor mas alto" => $valoresMasAltos));
         $response->getBody()->write($payload);        
 
         return $response->withHeader('Content-Type', 'application/json');

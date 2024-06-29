@@ -22,7 +22,11 @@ class ComentarioController extends Comentario implements IApiUsable{
     }
 
     public function TraerMejores($request, $response, $args){
-        $lista = Comentario::obtenerTodos();
+        $parametros = $request->getQueryParams();
+        
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual;    
+        $lista = Comentario::obtenerTodosFecha($parametros["fecha"]);
         $lista_mejores = [];
         $max_puntaje = 0; // el puntaje esta validado a ser entre (1-5)
 
@@ -42,8 +46,15 @@ class ComentarioController extends Comentario implements IApiUsable{
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
+
     public function TraerPeores($request, $response, $args){
-        $lista = Comentario::obtenerTodos();
+        $parametros = $request->getQueryParams();
+        
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual;    
+
+        $lista = Comentario::obtenerTodosFecha($parametros["fecha"]);
+
         $lista_mejores = [];
         $min_puntaje = 6; // el puntaje esta validado a ser entre (1-5)
 
@@ -69,10 +80,14 @@ class ComentarioController extends Comentario implements IApiUsable{
         $codigoMesa = $parametros['codigoMesa'];
         $puntaje = $parametros['puntaje'];
         $comentario = $parametros['comentario'];
+
+        $fecha = new DateTime(date('Y-m-d'));
+
         $prd = new Comentario();
         $prd->codigoMesa = $codigoMesa;
         $prd->puntaje = $puntaje;
         $prd->comentario = $comentario;
+        $prd->fechaComentario = date_format($fecha, 'Y-m-d');
         $prd->crearComentario();
 
         $payload = json_encode(array("mensaje" => "Comentario creado con exito"));
@@ -103,7 +118,7 @@ class ComentarioController extends Comentario implements IApiUsable{
         if(isset($parametros['comentario'])){
             $comentario->comentario = $parametros['comentario'];
         }
-    
+
         Comentario::modificarComentario($comentario);
         $payload = json_encode(array("mensaje" => "Comentario modificado con exito"));
         $response->getBody()->write($payload);

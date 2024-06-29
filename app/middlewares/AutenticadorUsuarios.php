@@ -61,7 +61,25 @@
             return true;
         }
 
+        public static function ValidarFecha($request, $handler, $rol = false){
+            $parametros = $request->getQueryParams();
+            if(isset($parametros["fecha"]) && AutenticadorUsuario::verificarFecha($parametros["fecha"])){
+                
+                return $handler->handle($request);
+            }
+            throw new Exception('Fecha invalida');
+        }
 
-        
+        private static function verificarFecha($fecha)
+        {
+            $bool = false;
+
+            if ($fecha!=null)
+            {
+                $patron = '/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/'; // regex q ve fecha
+                if (preg_match($patron, $fecha)) $bool = true;
+            }
+            return $bool;
+        }
     }
 ?>

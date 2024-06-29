@@ -121,33 +121,23 @@ class MesaController extends Mesa implements IApiUsable{
 
     public static function GetCobroEntreDosFechas($request, $response, $args){
         $parametros = $request->getQueryParams();
-        $codigoMesa = $parametros['codigo'];
+
         $fechaEntrada = DateTime::createFromFormat('Y-m-d H:i:s', $parametros["fechaEntrada"]);
         $fechaSalida = DateTime::createFromFormat('Y-m-d H:i:s', $parametros["fechaSalida"]);
-        if(isset($codigoMesa)){
-            $listaPedidos = Pedido::obtenerPedidosPorMesa($codigoMesa);
-            $mesa = Mesa::obtenerMesaCodigoMesa($codigoMesa);
-            if ($mesa->estado == "cerrada")
-            {
-                $totalFacturado = 0;
-                foreach($listaPedidos as $pedido){
-                    if($pedido->estado == 'completado'){
-                        $fechaPedido = DateTime::createFromFormat('Y-m-d H:i:s', $pedido->fechaInicio);
-                        if ($fechaPedido >= $fechaEntrada && $fechaPedido <= $fechaSalida) {
-                            $totalFacturado += $pedido->importe * $pedido->cantidad;
-                        }
-                    }
+
+        $listaPedidos = Pedido::obtenerPedidosPorMesa($parametros["idMesa"]);
+
+        $totalFacturado = 0;
+        foreach($listaPedidos as $pedido){
+            if($pedido->estado == 'entregado'){
+                $fechaPedido = DateTime::createFromFormat('Y-m-d H:i:s', $pedido->fechaInicio);
+                if ($fechaPedido >= $fechaEntrada && $fechaPedido <= $fechaSalida) {
+                    $totalFacturado += $pedido->importe;
                 }
-                $payload = json_encode(array("mensaje" => "Total a facturado entre fechas: [ ".$totalFacturado." ]"));
-            }
-            else
-            {
-                $payload = json_encode(array("mensaje" => "La mesa no esta cerrada"));
             }
         }
-        else{
-            $payload = json_encode(array("mensaje" => "No se encontro la mesa"));
-        }
+        $payload = json_encode(array("mensaje" => "Total a facturado entre fechas: [ ".$totalFacturado." ]"));
+
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
@@ -259,8 +249,12 @@ class MesaController extends Mesa implements IApiUsable{
         return $response->withHeader('Content-Type', 'application/json');
     }
     public static function MesaMasUsada($request, $response, $args){
+        $parametros = $request->getQueryParams();
         $arrayFinal = [];
-        $pedidos = Pedido::obtenerTodos();
+
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual; 
+        $pedidos = Pedido::obtenerTodosFecha($parametros["fecha"]);
 
         for ($i=0; $i<count($pedidos); $i++)
         {
@@ -304,8 +298,12 @@ class MesaController extends Mesa implements IApiUsable{
     }
 
     public static function MesaMenosUsada($request, $response, $args){
+        $parametros = $request->getQueryParams();
         $arrayFinal = [];
-        $pedidos = Pedido::obtenerTodos();
+        
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual; 
+        $pedidos = Pedido::obtenerTodosFecha($parametros["fecha"]);
 
         for ($i=0; $i<count($pedidos); $i++)
         {
@@ -349,27 +347,123 @@ class MesaController extends Mesa implements IApiUsable{
     }
 
     public static function MasFacturo($request, $response, $args){
+        $parametros = $request->getQueryParams();
+
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual; 
+
         $mesas = Mesa::obtenerTodos();
-        $max = $mesas[0];
+        $flag = true;
         foreach($mesas as $mesa){
-            if($mesa->cobro > $max->cobro){
-                $max = $mesa;
+            $pedidos = Pedido::obtenerDeMesaFecha($parametros["fecha"], $mesa->id);
+
+            $cobroFecha = 0;
+            foreach($pedidos as $pedido)
+            {
+                $cobroFecha += $pedido->importe;
+            }
+
+            if($flag || $cobroFecha > $maxCobroFecha){
+                $flag = false;
+                $mesaFinal = $mesa;
+                $maxCobroFecha = $cobroFecha;
             }
         }
-        $payload = json_encode(array("Mesa que mas facturó" => $max));
+        $payload = json_encode(array("Mesa que mas facturó" => $mesaFinal));
     
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');
     }
     public static function MenosFacturo($request, $response, $args){
+        $parametros = $request->getQueryParams();
+
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual; 
+
         $mesas = Mesa::obtenerTodos();
-        $min = $mesas[0];
+        $flag = true;
         foreach($mesas as $mesa){
-            if($mesa->cobro < $min->cobro){
-                $min = $mesa;
+            $pedidos = Pedido::obtenerDeMesaFecha($parametros["fecha"], $mesa->id);
+            $cobroFecha = 0;
+            foreach($pedidos as $pedido)
+            {
+                $cobroFecha += $pedido->importe;
+            }
+
+            if($flag || $cobroFecha < $maxCobroFecha){
+                $mesaFinal = $mesa;
+                $maxCobroFecha = $cobroFecha;
+                $flag = false;
             }
         }
-        $payload = json_encode(array("Mesa que menos facturó" => $min));
+        $payload = json_encode(array("Mesa que menos facturó" => $mesaFinal));
+    
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public static function MesaConPedidoMasBarato($request, $response, $args){
+        $parametros = $request->getQueryParams();
+
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual; 
+
+        $mesas = Mesa::obtenerTodos();
+        $flag = true;
+        foreach($mesas as $mesa){
+            $pedidos = Pedido::obtenerDeMesaFecha($parametros["fecha"], $mesa->id);
+            $flagPedido = true;
+
+            if (count($pedidos) < 1) $minImporteActual = -1;
+            foreach($pedidos as $pedido) 
+            {
+                if ($flagPedido || $pedido->importe < $minImporteActual)
+                {
+                    $flagPedido = false;
+                    $minImporteActual = $pedido->importe;
+                }
+            }   
+
+            if($flag || ($minImporteActual != -1 && $minImporteActual > $minimoTotal)){
+                $flag = false;
+                $mesaFinal = $mesa;
+                $minimoTotal = $minImporteActual;
+            }
+        }
+        $payload = json_encode(array("Mesa con pedido mas barato: " => $mesaFinal->codigo . " con pedido de: " . $minimoTotal));
+    
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+    public static function MesaConPedidoMasCaro($request, $response, $args){
+        $parametros = $request->getQueryParams();
+
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual; 
+
+        $mesas = Mesa::obtenerTodos();
+        $flag = true;
+        foreach($mesas as $mesa){
+            $pedidos = Pedido::obtenerDeMesaFecha($parametros["fecha"], $mesa->id);
+            $flagPedido = true;
+
+            if (count($pedidos) < 1) $maxImporteActual = 0;
+            foreach($pedidos as $pedido) 
+            {
+                if ($flagPedido || $pedido->importe > $maxImporteActual)
+                {
+                    $flagPedido = false;
+                    $maxImporteActual = $pedido->importe;
+                }
+            }   
+
+            if($flag || $maxImporteActual > $maximoTotal){
+                $flag = false;
+                $mesaFinal = $mesa;
+                $maximoTotal = $maxImporteActual;
+            }
+        }
+        $payload = json_encode(array("Mesa con pedido mas caro: " => $mesaFinal->codigo . " con pedido maximo de: " . $maximoTotal));
     
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json');

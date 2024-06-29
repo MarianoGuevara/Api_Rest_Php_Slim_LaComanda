@@ -28,10 +28,28 @@ class Pedido{
         
         $consulta->execute();
 
-        
         return $objAccesoDatos->obtenerUltimoId();
     }
 
+    public static function obtenerDeMesaFecha($fechaInicio, $idMesa)
+    {
+        $objAccesoDatos = AccesoDatos::obtenerInstancia();
+        $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM pedidos WHERE fechaInicio > :fechaInicio AND idMesa = :idMesa AND estado = :estado");
+        $consulta->bindValue(':fechaInicio', $fechaInicio, PDO::PARAM_STR);
+        $consulta->bindValue(':idMesa', $idMesa, PDO::PARAM_INT);
+        $consulta->bindValue(':estado', "entregado", PDO::PARAM_STR);
+        $consulta->execute();
+        return $consulta->fetchAll(PDO::FETCH_CLASS, 'Pedido');
+    }
+
+    public static function obtenerTodosFecha($fechaInicio)
+    {
+        $objAccesoDatos = AccesoDatos::obtenerInstancia();
+        $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM pedidos WHERE fechaInicio > :fechaInicio");
+        $consulta->bindValue(':fechaInicio', $fechaInicio, PDO::PARAM_STR);
+        $consulta->execute();
+        return $consulta->fetchAll(PDO::FETCH_CLASS, 'Pedido');
+    }
 
     public static function obtenerTodos()
     {
@@ -64,6 +82,8 @@ class Pedido{
         $objAccesoDatos = AccesoDatos::obtenerInstancia();
         $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM pedidos WHERE idMesa = :idMesa");
         $consulta->bindValue(':idMesa', $idMesa, PDO::PARAM_INT);
+        // AND fechaInicio = :fechaInicio
+        // $consulta->bindValue(':fechaInicio', $fechaInicio, PDO::PARAM_STR);
         $consulta->execute();
         return $consulta->fetchAll(PDO::FETCH_CLASS, 'Pedido');
     }
@@ -111,10 +131,10 @@ class Pedido{
     public static function borrarPedido($pedido) {
         $objAccesoDato = AccesoDatos::obtenerInstancia();
         $consulta = $objAccesoDato->prepararConsulta("UPDATE pedidos SET estado = :estado, fechaCierre = :fechaCierre WHERE id = :id");
-        $fecha = new DateTime(date('Y-m-d'));
+        $fecha = new DateTime(date('Y-m-d H:i:s'));
         $consulta->bindValue(':id', $pedido->id, PDO::PARAM_INT);
         $consulta->bindValue(':estado', 'cancelado', PDO::PARAM_STR);
-        $consulta->bindValue(':fechaCierre', date_format($fecha, 'Y-m-d'), PDO::PARAM_STR);
+        $consulta->bindValue(':fechaCierre', date_format($fecha, 'Y-m-d H:i:s'), PDO::PARAM_STR);
         $consulta->execute();
     }
 

@@ -26,9 +26,10 @@ class RegistroLogin{
         return $consulta->fetchAll(PDO::FETCH_CLASS, 'RegistroLogin');
     }
 
-    public static function ObtenerPorUsuario($idUsuario){
+    public static function ObtenerPorUsuario($idUsuario, $fecha){
         $objAccesoDatos = AccesoDatos::obtenerInstancia();
-        $consulta = $objAccesoDatos->prepararConsulta("SELECT id, idUsuario, fechaConexion FROM registrologin WHERE idUsuario = :idUsuario");
+        $consulta = $objAccesoDatos->prepararConsulta("SELECT id, idUsuario, fechaConexion FROM registrologin WHERE idUsuario = :idUsuario AND fechaConexion > :fechaConexion");
+        $consulta->bindValue(':fechaConexion', $fecha, PDO::PARAM_STR);
         $consulta->bindValue(':idUsuario', $idUsuario, PDO::PARAM_INT);
         $consulta->execute();
 

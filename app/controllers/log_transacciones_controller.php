@@ -26,17 +26,18 @@
 
         public function CalcularCantidadOperaciones($request, $response, $args)
         {
+            $parametros = $request->getQueryParams();
             $sectores = Usuario::ObtenerSectores();
-            $transacciones = LogTransaccion::TraerTodo();
+
+            $horaActual = date('H:i:s');
+            $parametros["fecha"] .= ' ' . $horaActual;    
+
+            $transacciones = LogTransaccion::TraerTodoFecha($parametros["fecha"]);
 
             foreach ($transacciones as $transaccion)
             {
-                if (isset($usuario->rol) && $usuario->rol != false && $usuario->rol != null)
-                {
-                    $usuario = Usuario::obtenerUsuario($transaccion->idUsuario);
-                    $sectores[$usuario->rol] += 1;
-                }
-                
+                $usuario = Usuario::obtenerUsuario($transaccion->idUsuario);
+                $sectores[$usuario->rol] += 1;
             }
 
             $payload = json_encode(["cantidadOperaciones" => $sectores]);
@@ -46,8 +47,13 @@
 
         public function CalcularCantidadOperacionesUsuarios($request, $response, $args)
         {
+            $parametros = $request->getQueryParams();
             $sectores = [];
-            $transacciones = LogTransaccion::TraerTodo();
+
+            $horaActual = date('H:i:s');
+            $parametros["fecha"] .= ' ' . $horaActual;    
+
+            $transacciones = LogTransaccion::TraerTodoFecha($parametros["fecha"]);
 
             foreach ($transacciones as $transaccion)
             {
@@ -64,6 +70,31 @@
             }
 
             $payload = json_encode(["cantidadOperaciones" => $sectores]);
+            $response->getBody()->write($payload);
+            return $response->withHeader('Content-Type', 'application/json');
+        }
+
+        public function CalcularCantidadOperacionesUno($request, $response, $args)
+        {
+            $parametros = $request->getQueryParams();
+            $arrayFinal[$parametros["idUsuario"]] = 0;
+
+            $horaActual = date('H:i:s');
+            $parametros["fecha"] .= ' ' . $horaActual;    
+
+            $transacciones = LogTransaccion::TraerTodoFecha($parametros["fecha"]);
+
+            foreach ($transacciones as $transaccion)
+            {
+                $usuario = Usuario::obtenerUsuario($transaccion->idUsuario);
+                $usuario2 = Usuario::obtenerUsuario($parametros["idUsuario"]);
+                if ($usuario->id == $usuario2->id)
+                {
+                    $arrayFinal[$parametros["idUsuario"]] += 1;
+                }
+            }
+
+            $payload = json_encode(["cantidadOperacionesUser" => $arrayFinal]);
             $response->getBody()->write($payload);
             return $response->withHeader('Content-Type', 'application/json');
         }

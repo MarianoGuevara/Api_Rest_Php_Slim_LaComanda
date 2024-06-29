@@ -11,13 +11,11 @@
         {
             $objAccesoDatos = AccesoDatos::obtenerInstancia();
 
-            $fecha = new DateTime();
-            $fechaStr = $fecha->format('d/m/Y H:i:s');
-            $this->fecha = $fechaStr;
+            $fecha = new DateTime(date('Y-m-d'));
 
             $consulta = $objAccesoDatos->prepararConsulta("INSERT INTO logTransacciones (fecha, idUsuario, accion, code) VALUES (:fecha, :idUsuario, :accion, :code)");
 
-            $consulta->bindValue(':fecha', $this->fecha, PDO::PARAM_STR);
+            $consulta->bindValue(':fecha', date_format($fecha, 'Y-m-d'), PDO::PARAM_STR);
             $consulta->bindValue(':idUsuario', $this->idUsuario, PDO::PARAM_STR);
             $consulta->bindValue(':code', $this->code, PDO::PARAM_INT);
             $consulta->bindValue(':accion', $this->accion, PDO::PARAM_INT);
@@ -33,6 +31,15 @@
         {
             $objAccesoDatos = AccesoDatos::obtenerInstancia();
             $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM logTransacciones");
+            $consulta->execute();
+
+            return $consulta->fetchAll(PDO::FETCH_CLASS, 'logTransaccion');
+        }
+        public static function TraerTodoFecha($fecha)
+        {
+            $objAccesoDatos = AccesoDatos::obtenerInstancia();
+            $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM logTransacciones WHERE fecha > :fecha");
+            $consulta->bindValue(':fecha', $fecha, PDO::PARAM_STR);
             $consulta->execute();
 
             return $consulta->fetchAll(PDO::FETCH_CLASS, 'logTransaccion');

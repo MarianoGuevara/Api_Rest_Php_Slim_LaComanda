@@ -97,7 +97,11 @@ class UsuarioController extends Usuario implements IApiUsable
     {
         $parametros = $request->getQueryParams();
         $idUsuario = $parametros['idUsuario'];
-        $registro = RegistroLogin::ObtenerPorUsuario($idUsuario);
+
+        $horaActual = date('H:i:s');
+        $parametros["fecha"] .= ' ' . $horaActual;
+
+        $registro = RegistroLogin::ObtenerPorUsuario($idUsuario, $parametros["fecha"]);
         $payload = json_encode(array("registroLogin" => $registro));
 
         $response->getBody()->write($payload);

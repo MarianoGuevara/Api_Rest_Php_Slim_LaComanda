@@ -5,22 +5,32 @@ class Comentario{
     public $codigoMesa;
     public $puntaje;
     public $comentario;
+    public $fechaComentario;
     
     public function crearComentario(){
         $objAccesoDatos = AccesoDatos::obtenerInstancia();
-        $consulta = $objAccesoDatos->prepararConsulta("INSERT INTO comentarios (codigoMesa, puntaje, comentario) VALUES (:codigoMesa, :puntaje, :comentario)");
+        $consulta = $objAccesoDatos->prepararConsulta("INSERT INTO comentarios (codigoMesa, puntaje, comentario, fechaComentario) VALUES (:codigoMesa, :puntaje, :comentario, :fechaComentario)");
         $consulta->bindValue(':codigoMesa', $this->codigoMesa, PDO::PARAM_STR);
         $consulta->bindValue(':puntaje', $this->puntaje, PDO::PARAM_INT);
         $consulta->bindValue(':comentario', $this->comentario, PDO::PARAM_STR);
+        $consulta->bindValue(':fechaComentario', $this->fechaComentario, PDO::PARAM_STR);
 
         $consulta->execute();
 
         return $objAccesoDatos->obtenerUltimoId();
     }
+    public static function obtenerTodosFecha($fechaComentario){
+        $objAccesoDatos = AccesoDatos::obtenerInstancia();
+        $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM comentarios WHERE fechaComentario > :fechaComentario ");
+        $consulta->bindValue(':fechaComentario', $fechaComentario, PDO::PARAM_STR);
 
+        $consulta->execute();
+
+        return $consulta->fetchAll(PDO::FETCH_CLASS, 'Comentario');
+    }
     public static function obtenerTodos(){
         $objAccesoDatos = AccesoDatos::obtenerInstancia();
-        $consulta = $objAccesoDatos->prepararConsulta("SELECT id, codigoMesa, puntaje, comentario FROM comentarios");
+        $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM comentarios");
         $consulta->execute();
 
         return $consulta->fetchAll(PDO::FETCH_CLASS, 'Comentario');
@@ -28,7 +38,7 @@ class Comentario{
 
     public static function obtenerComentario($id){
         $objAccesoDatos = AccesoDatos::obtenerInstancia();
-        $consulta = $objAccesoDatos->prepararConsulta("SELECT id, codigoMesa, puntaje, comentario FROM comentarios WHERE id = :id");
+        $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM comentarios WHERE id = :id");
         $consulta->bindValue(':id', $id, PDO::PARAM_INT);
         $consulta->execute();
 
@@ -37,7 +47,7 @@ class Comentario{
 
     public static function obtenerComentarioCodigoMesa($codigoMesa){
         $objAccesoDatos = AccesoDatos::obtenerInstancia();
-        $consulta = $objAccesoDatos->prepararConsulta("SELECT id, codigoMesa, puntaje, comentario FROM comentarios WHERE codigoMesa = :codigoMesa");
+        $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM comentarios WHERE codigoMesa = :codigoMesa");
         $consulta->bindValue(':codigoMesa', $codigoMesa, PDO::PARAM_STR);
         $consulta->execute();
 

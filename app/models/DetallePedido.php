@@ -44,6 +44,15 @@ class DetallePedido
             $resultado = $consulta->fetchAll(PDO::FETCH_ASSOC);
             return $resultado;  
         }
+        public static function obtenerDetallePedidosFecha($fechaInicio)
+        {
+            $objAccesoDatos = AccesoDatos::obtenerInstancia();
+            $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM pedido_detalle WHERE fechaInicio > :fechaInicio");
+            $consulta->bindValue(':fechaInicio', $fechaInicio, PDO::PARAM_STR);     
+            $consulta->execute();
+            $resultado = $consulta->fetchAll(PDO::FETCH_ASSOC);
+            return $resultado;  
+        }
 
         public static function obtenerDetalleIndividual($idDetalle)
         {
@@ -156,4 +165,17 @@ class DetallePedido
                 }
             }
         }
+        public static function cancelarDetallePedido($id)
+        {
+            $objAccesoDatos = AccesoDatos::obtenerInstancia();
+            $consulta = $objAccesoDatos->prepararConsulta("UPDATE pedido_detalle SET estado = :estado, fechaCierre = :fechaCierre WHERE id = :id");
+
+            $fecha = new DateTime(date('Y-m-d H:i:s'));
+
+            $consulta->bindValue(':id', $id, PDO::PARAM_INT);
+            $consulta->bindValue(':estado', 'cancelado', PDO::PARAM_STR);     
+            $consulta->bindValue(':fechaCierre', date_format($fecha, 'Y-m-d H:i:s'), PDO::PARAM_STR);
+            $consulta->execute();
+        }
+
 }

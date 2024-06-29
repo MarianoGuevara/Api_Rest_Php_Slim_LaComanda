@@ -16,6 +16,14 @@ class Mesa{
 
         return $objAccesoDatos->obtenerUltimoId();
     }
+    // public static function obtenerTodosFecha($fechaInicio){
+    //     $objAccesoDatos = AccesoDatos::obtenerInstancia();
+    //     $consulta = $objAccesoDatos->prepararConsulta("SELECT * FROM mesas WHERE fechaInicio > :fechaInicio");
+    //     $consulta->bindValue(':fechaInicio', $fechaInicio, PDO::PARAM_STR);
+    //     $consulta->execute();
+
+    //     return $consulta->fetchAll(PDO::FETCH_CLASS, 'Mesa');
+    // }
 
     public static function obtenerTodos(){
         $objAccesoDatos = AccesoDatos::obtenerInstancia();
