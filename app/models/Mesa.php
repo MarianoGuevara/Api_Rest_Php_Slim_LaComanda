@@ -3,7 +3,7 @@
 class Mesa{
     public $id;
     public $codigo;
-    public $estado; // libre, en uso, cerrada(admin)
+    public $estado; // libre, con cliente esperando pedido, con cliente comiendo, cerrada(admin)
     public $cobro;
     
     public function crearMesa(){

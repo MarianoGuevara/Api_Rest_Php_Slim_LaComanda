@@ -37,7 +37,7 @@
 
         public static function ValidarMesaCerrada($request, $handler){
             $parametros = $request->getParsedBody();
-            $mesa = Mesa::obtenerMesaCodigoMesa($parametros['codigoMesa']);
+            $mesa = Mesa::obtenerMesa($parametros['idMesa']);
             if($mesa->estado == "cerrada"){
                 return $handler->handle($request);
             }

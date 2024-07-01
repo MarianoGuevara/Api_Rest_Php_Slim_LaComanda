@@ -72,7 +72,7 @@ class PedidoController extends Pedido implements IApiUsable{
         $idPedido = $pedido->crearPedido();
 
         $mesa = Mesa::obtenerMesaCodigoMesa($parametros["codigoMesa"]);
-        $mesa->estado = "en uso";
+        $mesa->estado = "con cliente esperando pedido";
         Mesa::modificarMesa($mesa);
 
         var_dump($idPedido);
@@ -205,9 +205,10 @@ class PedidoController extends Pedido implements IApiUsable{
                     $vale = true;
                 }
 
-                if ($vale)
+                if ($vale && $pedido->estado == "pendiente")
                 {
                     DetallePedido::comenzarPreparacionDetallePedido((int)($parametros["idDetalle"]), $parametros["tiempoPreparacion"], $datos->id);
+                    
                     $payload = json_encode(array("mensaje" => 'Comenzo la preparacion del pedido'));
                 }
                 else
@@ -244,12 +245,12 @@ class PedidoController extends Pedido implements IApiUsable{
         $minutosTranscurridos += $diferencia->i;
 
         $tiempoRestante = $detallePedido->tiempoPreparacion - $minutosTranscurridos; // Me fijo que haya pasado el tiempo antes
-
+        var_dump($tiempoRestante);
         if ($detallePedido->estado == "en preparacion" && $tiempoRestante < 1)
         {
             $token = $cookie['JWT'];
             $datos = AutentificadorJWT::ObtenerData($token);
-            var_dump($datos->rol);
+
             $vale = false;
             if($datos->rol == 'cocinero' && $detallePedido->sector == "cocina"){
                 $vale = true;
@@ -286,9 +287,13 @@ class PedidoController extends Pedido implements IApiUsable{
         $parametros = $request->getQueryParams();
 
         $pedido = Pedido::obtenerPedido($parametros["codigoPedido"]);
+
         if ($pedido != null && $pedido->estado == "preparado")
         {
             Pedido::LlevarPedido($pedido->id);
+            $mesa = Mesa::obtenerMesa($pedido->idMesa);
+            $mesa->estado = "con cliente comiendo";
+            Mesa::modificarMesa($mesa);
             $payload = json_encode(array("mensaje" => 'Pedido entregado. Que lo goze'));
         }
         else
@@ -442,7 +447,24 @@ class PedidoController extends Pedido implements IApiUsable{
 
         for ($i=0; $i<count($pedidos); $i++)
         {
-            $arrayFinal[$pedidos[$i]->codigoPedido] = $pedidos[$i]->tiempoPreparacion;
+            if ($pedidos[$i]->estado == "en preparacion")
+            {
+                $fechaActual = new DateTime();
+                $fechaInicioPedido = new DateTime($pedidos[$i]->fechaInicio);
+
+                $diferencia = $fechaInicioPedido->diff($fechaActual);
+
+                $minutosTranscurridos = $diferencia->days * 24 * 60;
+                $minutosTranscurridos += $diferencia->h * 60;
+                $minutosTranscurridos += $diferencia->i;
+
+                $tiempoRestante = $pedidos[$i]->tiempoPreparacion - $minutosTranscurridos;
+
+                if ($tiempoRestante > 0) $msj = "El pedido tardará: " . $tiempoRestante;
+                else $msj = "El pedido está tardío con demora de: " . str_replace("-", "", (string)($tiempoRestante)) . " minutos";
+
+                $arrayFinal[$pedidos[$i]->codigoPedido] = $msj;
+            }
         }
 
         $payload = json_encode(array("mensaje" => $arrayFinal));

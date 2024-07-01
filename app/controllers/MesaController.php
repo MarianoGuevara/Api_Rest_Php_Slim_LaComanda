@@ -169,10 +169,6 @@ class MesaController extends Mesa implements IApiUsable{
 
         if (isset($parametros["codigoMesa"]))
         {
-            // $codigoPedido = $parametros["codigoPedido"];
-
-            // $mesa = Mesa::obtenerMesaCodigoMesa($parametros['codigoMesa']);
-            // $lista = Pedido::obtenerPedidosPorMesa($mesa->id);
             $pedido = Pedido::obtenerPedido($parametros["numPedido"]);
 
             if ($pedido != false && $pedido->tiempoPreparacion != null)

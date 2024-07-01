@@ -25,6 +25,16 @@
             throw new Exception('Acceso denegado');
         }
 
+        public static function ValidarPermisosDeRolCliente($request, $handler, $rol = false){
+            $cookies = $request->getCookieParams();
+            $token = $cookies['JWT'];
+            AutentificadorJWT::VerificarToken($token);
+            $datos = AutentificadorJWT::ObtenerData($token);
+            if(!$rol && $datos->rol == 'cliente'){
+                return $handler->handle($request);
+            }
+            throw new Exception('Acceso denegado');
+        }
         public static function ValidarPermisosDeRolDoble($request, $handler, $rol1 = false, $rol2 = false){
             $cookies = $request->getCookieParams();
             $token = $cookies['JWT'];

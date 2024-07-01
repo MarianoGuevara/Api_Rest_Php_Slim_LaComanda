@@ -176,7 +176,7 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
     ->add(\AutenticadorPedidos::class.':ValidarEstado')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');
 
-    $group->delete('[/]', \PedidoController::class.':BorrarUno') // borra pedido y detalles asociados
+    $group->delete('[/]', \PedidoController::class.':BorrarUno') // borra pedido y detalles asociados; lo cancela
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol');
 
     $group->get('/por/sector', \PedidoController::class.':TraerTodosPorSector');
@@ -194,9 +194,6 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
 
     $group->get('/pedidosTiempos', \PedidoController::class.':PedidosTiempos')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRol'); 
-    
-    $group->delete('/cancelar', \PedidoController::class.':PedidosTiempos')
-    ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble'); 
 })
 ->add(\LogMiddleware::class.':LogTransaccion')
 ->add(\Logger::class.':ValidarSesionIniciada');
@@ -224,12 +221,10 @@ $app->group('/archivos', function (RouteCollectorProxy $group) {
 
 
 $app->post('/comentar', \ComentarioController::class.':CargarUno')
-->add(\AutenticadorMesas::class.':ValidarMesaCerrada')
-->add(\AutenticadorMesas::class.':ValidarMesaCodigoMesa')
+->add(\AutenticadorMesas::class.':ValidarMesaCerrada') // esta de mas capaz
+->add(\AutenticadorComentarios::class.':ValidarBindeo')
 ->add(\AutenticadorComentarios::class.':ValidarCamposComentario')
-->add(function ($request, $handler){
-    return \AutenticadorUsuario::ValidarPermisosDeRolDoble($request, $handler, 'cliente');
-})
+->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolCliente')
 ->add(\LogMiddleware::class.':LogTransaccion')
 ->add(\Logger::class.':ValidarSesionIniciada');
 
