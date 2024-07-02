@@ -91,7 +91,7 @@ class MesaController extends Mesa implements IApiUsable{
         return $codigo;
     }
 
-    public static function CerrarMesa($request, $response, $args) {
+    public static function CobrarUnaMesa($request, $response, $args) {
         $parametros = $request->getParsedBody();
 
         if(isset($parametros['idMesa']))
@@ -105,7 +105,7 @@ class MesaController extends Mesa implements IApiUsable{
             {
                 $mesa->cobro += $pedido->importe;
                 Mesa::modificarMesa($mesa);
-                Mesa::CobrarYLiberarMesa($mesa->codigo);
+                Mesa::CobrarMesa($mesa->codigo);
                 $payload = json_encode(array("mensaje" => "Mesa cobrada - Total a pagar: [ ".$pedido->importe." ]"));
             }
             else{

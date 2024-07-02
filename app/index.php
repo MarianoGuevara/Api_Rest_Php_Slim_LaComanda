@@ -200,7 +200,7 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
 
 
 $app->group('/cobrar', function (RouteCollectorProxy $group) {
-    $group->post('[/]', \MesaController::class.':CerrarMesa')
+    $group->post('[/]', \MesaController::class.':CobrarUnaMesa')
     ->add(\AutenticadorUsuario::class.':ValidarPermisosDeRolDoble');    
 })
 ->add(\LogMiddleware::class.':LogTransaccion')

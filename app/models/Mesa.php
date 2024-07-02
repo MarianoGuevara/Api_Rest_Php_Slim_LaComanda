@@ -84,11 +84,11 @@ class Mesa{
         return $codigo;
     }
 
-    public static function CobrarYLiberarMesa($codigo){
+    public static function CobrarMesa($codigo){
         $objAccesoDato = AccesoDatos::obtenerInstancia();
         $consulta = $objAccesoDato->prepararConsulta("UPDATE mesas SET estado = :estado WHERE codigo = :codigo");
         $consulta->bindValue(':codigo', $codigo, PDO::PARAM_STR);
-        $consulta->bindValue(':estado', 'libre', PDO::PARAM_STR);
+        $consulta->bindValue(':estado', 'con cliente pagando', PDO::PARAM_STR);
         $consulta->execute();
     }
 }
